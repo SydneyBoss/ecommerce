@@ -17,6 +17,15 @@ const state = {
     adminOrders: []
 };
 
+// Indian Currency Formatter (₹ INR)
+function formatINR(val) {
+    if (val === null || val === undefined || isNaN(val)) return '0.00';
+    return Number(val).toLocaleString('en-IN', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+}
+
 // DOM Content Loaded Entrypoint
 document.addEventListener('DOMContentLoaded', () => {
     initApp();
@@ -152,7 +161,9 @@ function setupEventListeners() {
                 parentLabel.classList.remove('border-slate-200');
             }
             const cardFields = document.getElementById('cardFields');
-            if (cardFields) cardFields.style.display = e.target.value === 'Credit Card' ? 'block' : 'none';
+            const upiFields = document.getElementById('upiFields');
+            if (upiFields) upiFields.classList.toggle('hidden', e.target.value !== 'UPI');
+            if (cardFields) cardFields.classList.toggle('hidden', e.target.value !== 'Credit/Debit Card');
         });
     });
 
@@ -332,7 +343,7 @@ function renderProducts() {
             : (product.featured ? `<span class="absolute top-3 left-3 bg-brand-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider shadow-sm z-10">Featured</span>` : '');
 
         const discountHtml = product.originalPrice && product.originalPrice > product.price
-            ? `<span class="text-xs line-through text-slate-400 ml-1.5">$${Number(product.originalPrice).toFixed(2)}</span>`
+            ? `<span class="text-xs line-through text-slate-400 ml-1.5">₹${formatINR(product.originalPrice)}</span>`
             : '';
 
         return `
@@ -366,7 +377,7 @@ function renderProducts() {
 
                     <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
                         <div>
-                            <span class="text-lg font-extrabold text-slate-900">$${Number(product.price).toFixed(2)}</span>
+                            <span class="text-lg font-extrabold text-slate-900">₹${formatINR(product.price)}</span>
                             ${discountHtml}
                         </div>
                         <button onclick="addToCart(${product.id})" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-brand-600 text-white text-xs font-semibold transition-all shadow-sm active:scale-95">
@@ -402,7 +413,7 @@ function openProductModal(productId) {
     if (!modal || !content) return;
 
     const discountHtml = product.originalPrice && product.originalPrice > product.price
-        ? `<span class="text-sm line-through text-slate-400 ml-2">$${Number(product.originalPrice).toFixed(2)}</span>`
+        ? `<span class="text-sm line-through text-slate-400 ml-2">₹${formatINR(product.originalPrice)}</span>`
         : '';
 
     content.innerHTML = `
@@ -428,7 +439,7 @@ function openProductModal(productId) {
                         </span>
                     </div>
                     <div class="flex items-baseline mb-4 pb-4 border-b border-slate-100">
-                        <span class="text-3xl font-extrabold text-slate-900">$${Number(product.price).toFixed(2)}</span>
+                        <span class="text-3xl font-extrabold text-slate-900">₹${formatINR(product.price)}</span>
                         ${discountHtml}
                     </div>
                     <p class="text-sm text-slate-600 leading-relaxed mb-6">${escapeHtml(product.description || '')}</p>
@@ -529,8 +540,8 @@ function updateCartBadge() {
 
 function calculateCartTotals() {
     const subtotal = state.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const shipping = subtotal >= 100 || subtotal === 0 ? 0 : 9.99;
-    const tax = +(subtotal * 0.075).toFixed(2);
+    const shipping = subtotal >= 999 || subtotal === 0 ? 0 : 99.00;
+    const tax = +(subtotal * 0.18).toFixed(2); // 18% GST in India
     const total = +(subtotal + shipping + tax).toFixed(2);
     return { subtotal, shipping, tax, total };
 }
@@ -592,7 +603,7 @@ function renderCart() {
             <img src="${item.imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600'}" alt="${escapeHtml(item.name)}" class="w-16 h-16 rounded-xl object-cover bg-slate-100 border border-slate-200 shrink-0">
             <div class="flex-1 min-w-0">
                 <h4 class="text-xs font-bold text-slate-900 truncate">${escapeHtml(item.name)}</h4>
-                <p class="text-[11px] text-slate-500">$${item.price.toFixed(2)} each</p>
+                <p class="text-[11px] text-slate-500">₹${formatINR(item.price)} each</p>
                 <div class="flex items-center gap-3 mt-2">
                     <div class="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-slate-50">
                         <button onclick="updateCartQuantity(${item.id}, ${item.quantity - 1})" class="px-2 py-1 text-slate-600 hover:bg-slate-200 text-xs">-</button>
@@ -603,18 +614,18 @@ function renderCart() {
                 </div>
             </div>
             <div class="text-right">
-                <span class="text-sm font-bold text-slate-900">$${(item.price * item.quantity).toFixed(2)}</span>
+                <span class="text-sm font-bold text-slate-900">₹${formatINR(item.price * item.quantity)}</span>
             </div>
         </div>
     `).join('');
 
     const { subtotal, shipping, tax, total } = calculateCartTotals();
-    document.getElementById('cartSubtotal').innerText = `$${subtotal.toFixed(2)}`;
-    document.getElementById('cartShipping').innerText = shipping === 0 ? 'FREE' : `$${shipping.toFixed(2)}`;
-    document.getElementById('cartTax').innerText = `$${tax.toFixed(2)}`;
-    document.getElementById('cartTotal').innerText = `$${total.toFixed(2)}`;
+    document.getElementById('cartSubtotal').innerText = `₹${formatINR(subtotal)}`;
+    document.getElementById('cartShipping').innerText = shipping === 0 ? 'FREE' : `₹${formatINR(shipping)}`;
+    document.getElementById('cartTax').innerText = `₹${formatINR(tax)}`;
+    document.getElementById('cartTotal').innerText = `₹${formatINR(total)}`;
 
-    const progressPercent = Math.min(100, Math.round((subtotal / 100) * 100));
+    const progressPercent = Math.min(100, Math.round((subtotal / 999) * 100));
     const progressBar = document.getElementById('shippingProgressBar');
     const progressText = document.getElementById('shippingProgressText');
     const percentText = document.getElementById('shippingProgressPercent');
@@ -622,9 +633,9 @@ function renderCart() {
     if (progressBar && progressText && percentText) {
         progressBar.style.width = `${progressPercent}%`;
         percentText.innerText = `${progressPercent}%`;
-        progressText.innerHTML = subtotal >= 100
-            ? `🎉 You've unlocked <strong class="text-emerald-700">FREE Shipping!</strong>`
-            : `Add $${(100 - subtotal).toFixed(2)} more for FREE Shipping!`;
+        progressText.innerHTML = subtotal >= 999
+            ? `🎉 You've unlocked <strong class="text-emerald-700">FREE Delivery across India!</strong>`
+            : `Add ₹${formatINR(999 - subtotal)} more for FREE Delivery!`;
     }
 }
 
@@ -632,7 +643,7 @@ function openCheckoutModal() {
     if (state.cart.length === 0) { showToast('Your cart is empty', 'error'); return; }
     closeCart();
     const { total } = calculateCartTotals();
-    document.getElementById('checkoutTotalAmount').innerText = `$${total.toFixed(2)}`;
+    document.getElementById('checkoutTotalAmount').innerText = `₹${formatINR(total)}`;
     document.getElementById('checkoutModal')?.classList.remove('hidden');
 
     // Initialize or refresh delivery map
@@ -839,7 +850,7 @@ async function handlePlaceOrder(event) {
         country: 'India',
         latitude: parseFloat(document.getElementById('custLatitude')?.value) || 17.4483,
         longitude: parseFloat(document.getElementById('custLongitude')?.value) || 78.3839,
-        paymentMethod: document.querySelector('input[name="paymentMethod"]:checked')?.value || 'Credit Card',
+        paymentMethod: document.querySelector('input[name="paymentMethod"]:checked')?.value || 'UPI',
         items: state.cart.map(item => ({ productId: item.id, quantity: item.quantity }))
     };
 
@@ -874,7 +885,7 @@ async function handlePlaceOrder(event) {
 function showOrderConfirmation(order) {
     document.getElementById('confirmedOrderNumber').innerText = order.orderNumber;
     document.getElementById('confirmedCustomerName').innerText = order.customerName;
-    document.getElementById('confirmedTotalAmount').innerText = `$${Number(order.totalAmount).toFixed(2)}`;
+    document.getElementById('confirmedTotalAmount').innerText = `₹${formatINR(order.totalAmount)}`;
 
     const addrStr = `${order.shippingAddress}, ${order.area ? order.area + ', ' : ''}${order.city}, ${order.state || ''} - ${order.postalCode}, India 🇮🇳`;
     const addrEl = document.getElementById('confirmedAddress');
@@ -954,7 +965,7 @@ function renderCustomerOrderCard(order) {
     const itemsHtml = (order.items || []).map(item => `
         <div class="flex justify-between items-center text-xs text-slate-600 py-1">
             <span>${escapeHtml(item.productName)} <span class="text-slate-400 font-bold">× ${item.quantity}</span></span>
-            <span class="font-semibold text-slate-900">$${Number(item.subtotal).toFixed(2)}</span>
+            <span class="font-semibold text-slate-900">₹${formatINR(item.subtotal)}</span>
         </div>
     `).join('');
 
@@ -982,7 +993,7 @@ function renderCustomerOrderCard(order) {
 
             <div class="pt-2 border-t border-slate-200 flex flex-wrap justify-between items-center text-xs">
                 <span class="text-slate-500">Recipient: <strong class="text-slate-800">${escapeHtml(order.customerName)}</strong></span>
-                <span class="text-sm font-extrabold text-slate-900">Total: $${Number(order.totalAmount).toFixed(2)}</span>
+                <span class="text-sm font-extrabold text-slate-900">Total: ₹${formatINR(order.totalAmount)}</span>
             </div>
         </div>
     `;
@@ -1046,7 +1057,7 @@ function renderSellerTable() {
                     </div>
                 </td>
                 <td class="py-3 px-4 text-slate-600 font-medium">${escapeHtml(p.category?.name || 'General')}</td>
-                <td class="py-3 px-4 font-mono font-bold text-slate-900">$${Number(p.price).toFixed(2)}</td>
+                <td class="py-3 px-4 font-mono font-bold text-slate-900">₹${formatINR(p.price)}</td>
                 <td class="py-3 px-4">
                     <span class="font-bold text-slate-800">${stock} units</span>
                 </td>
@@ -1169,7 +1180,7 @@ async function refreshAdminData() {
         const statsRes = await fetch('/api/orders/stats/dashboard');
         if (statsRes.ok) {
             const stats = await statsRes.json();
-            document.getElementById('adminTotalRevenue').innerText = `$${Number(stats.totalRevenue || 0).toFixed(2)}`;
+            document.getElementById('adminTotalRevenue').innerText = `₹${formatINR(stats.totalRevenue || 0)}`;
             document.getElementById('adminTotalOrders').innerText = stats.totalOrders || 0;
             document.getElementById('adminPendingOrders').innerText = stats.pendingOrdersCount || 0;
             document.getElementById('adminTotalProducts').innerText = stats.totalProducts || 0;
@@ -1226,7 +1237,7 @@ function renderAdminOrdersTable() {
                     </div>
                 </td>
                 <td class="py-3 px-4 font-medium text-slate-700">${itemCount} item${itemCount === 1 ? '' : 's'}</td>
-                <td class="py-3 px-4 font-mono font-bold text-slate-900">$${Number(ord.totalAmount).toFixed(2)}</td>
+                <td class="py-3 px-4 font-mono font-bold text-slate-900">₹${formatINR(ord.totalAmount)}</td>
                 <td class="py-3 px-4 text-slate-600">${escapeHtml(ord.paymentMethod || 'Credit Card')}</td>
                 <td class="py-3 px-6 text-right">
                     <select onchange="handleAdminOrderStatusChange('${ord.orderNumber}', this.value)"

@@ -1,31 +1,29 @@
-# NOVA — Modern Full-Stack E-Commerce Platform
+# NOVA — Indian Full-Stack E-Commerce Platform
 
-A production-ready, full-stack E-Commerce application built with **Java 24**, **Spring Boot 3.4**, **Spring Data JPA**, **H2 In-Memory Database**, and a responsive modern web storefront styled with **Tailwind CSS**.
+A production-ready, full-stack E-Commerce application tailored for **India**, built with **Java 24**, **Spring Boot 3.4**, **Spring Data JPA**, **H2 In-Memory Database**, and a responsive web storefront styled with **Tailwind CSS**, featuring **Interactive Leaflet Delivery Maps** and **Indian 6-digit PIN Code Auto-Detection**.
 
 ---
 
-## 🚀 Features
+## 🇮🇳 India-Specific Features
 
-### 🛍️ Customer Storefront
-- **Responsive Product Catalog**: Browse items with high-resolution imagery, pricing, discounts, and ratings.
-- **Dynamic Category Filtering**: Filter between *Electronics*, *Audio & Sound*, *Fashion & Apparel*, *Home & Living*, and *Everyday Carry*.
-- **Live Search & Sorting**: Real-time debounced search bar and multiple sorting options (Featured, Price Low-High, Price High-Low, Highest Rated, Name).
-- **Product Quick-View Modal**: View detailed specs, stock status, and add items with custom quantities directly.
-- **Interactive Shopping Bag / Drawer**:
-  - Add, adjust quantities, and remove items with instant subtotal and tax calculation.
-  - **Dynamic Free Shipping Meter**: Visual progress bar indicating how much more to add to unlock free shipping ($100 threshold).
-  - Persisted in browser `localStorage` across page reloads.
-- **Streamlined Checkout Flow**: Form validation for shipping info, payment selection (Card, Apple Pay, COD), and mock card input.
-- **Order Confirmation & Tracking**:
-  - Instant order receipt with unique tracking ID (`ORD-YYYYMMDD-XXXX`).
-  - Order tracking modal allowing customers to track existing orders in real time.
+- **Indian Rupee (₹ INR) Pricing & GST**: All products, order calculations, and revenue analytics are in ₹ INR with standard 18% GST.
+- **Indian PIN Code Lookup & Interactive Map**:
+  - Type any 6-digit Indian PIN code (e.g., `500081`, `560001`, `110001`, `400001`).
+  - Automatically identifies **Area / Locality**, **City / District**, and **State**.
+  - **Leaflet Map Integration**: Shows the identified Indian neighborhood with a draggable marker to pinpoint the customer's exact doorstep.
+- **Indian Payment Methods**:
+  - 📱 **UPI** (Google Pay, PhonePe, Paytm, BHIM)
+  - 💳 **Credit & Debit Cards** (RuPay, Visa, MasterCard)
+  - 💵 **Cash on Delivery (COD)**
+- **Indian Express Logistics**: Free delivery on orders above ₹999 across India.
 
-### ⚙️ Backend Architecture (Spring Boot & JPA)
-- **Spring Boot 3.4.2** & **Java 24** native support.
-- **RESTful Endpoints** for Products, Categories, and Orders.
-- **H2 In-Memory Database** with automatic schema creation and mock dataset seeding on startup via `DataInitializer`.
-- **H2 Web Console** enabled for real-time SQL inspection and debugging.
-- **Stock Management**: Automatically checks stock quantity during checkout and reduces available inventory upon order placement.
+---
+
+## 🚀 Portals & Roles
+
+- **🛒 User Mode (Customer)**: Browse catalog in ₹ INR, search, filter by category, quick view, cart drawer, checkout with Indian address + Leaflet map, and order tracking.
+- **📦 Seller Mode (Merchant)**: Inventory overview, adjust stock levels, update unit prices in ₹ INR, and create new listings.
+- **🛡️ Admin Mode (Executive)**: Review gross revenue (₹), total orders, pending fulfillment pipeline, update live order status (`PENDING` → `DELIVERED`), and manage categories.
 
 ---
 

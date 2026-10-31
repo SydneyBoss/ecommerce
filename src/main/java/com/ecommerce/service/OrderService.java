@@ -88,15 +88,15 @@ public class OrderService {
 
         order.setSubtotalAmount(subtotal);
 
-        // Shipping fee calculation: Free shipping for orders above $100, else $9.99
-        BigDecimal shippingFee = subtotal.compareTo(new BigDecimal("100.00")) >= 0
+        // Indian Shipping fee calculation: Free delivery across India for orders above ₹999, else ₹99
+        BigDecimal shippingFee = subtotal.compareTo(new BigDecimal("999.00")) >= 0
                 ? BigDecimal.ZERO
-                : new BigDecimal("9.99");
+                : new BigDecimal("99.00");
         order.setShippingFee(shippingFee);
 
-        // Tax calculation (approx 7.5%)
-        BigDecimal taxRate = new BigDecimal("0.075");
-        BigDecimal tax = subtotal.multiply(taxRate).setScale(2, RoundingMode.HALF_UP);
+        // Indian GST calculation (18% standard GST)
+        BigDecimal gstRate = new BigDecimal("0.18");
+        BigDecimal tax = subtotal.multiply(gstRate).setScale(2, RoundingMode.HALF_UP);
         order.setTaxAmount(tax);
 
         BigDecimal total = subtotal.add(shippingFee).add(tax);
