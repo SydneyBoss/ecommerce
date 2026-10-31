@@ -1,0 +1,53 @@
+package com.ecommerce.controller;
+
+import com.ecommerce.dto.OrderRequest;
+import com.ecommerce.dto.OrderResponse;
+import com.ecommerce.service.OrderService;
+import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/orders")
+@CrossOrigin(origins = "*")
+public class OrderController {
+
+    private final OrderService orderService;
+
+    @Autowired
+    public OrderController(OrderService orderService) {
+        this.orderService = orderService;
+    }
+
+    @PostMapping
+    public ResponseEntity<?> placeOrder(@Valid @RequestBody OrderRequest request) {
+        try {
+            OrderResponse response = orderService.createOrder(request);
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            return ResponseEntity.badRequest().body(Collections.singletonMap("error", ex.getMessage()));
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Collections.singletonMap("error", "Failed to process order: " + ex.getMessage()));
+        }
+    }
+
+    @GetMapping
+    public ResponseEntity<List<OrderResponse>> getAllOrders() {
+        return ResponseEntity.ok(orderService.getAllOrders());
+    }
+
+    @GetMapping("/{orderNumber}")
+    public ResponseEntity<?> getOrderByOrderNumber(@PathVariable String orderNumber) {
+        return orderService.getOrderByNumber(orderNumber)
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Collections.singletonMap("error", "Order not found with number: " + orderNumber)));
+    }
+}

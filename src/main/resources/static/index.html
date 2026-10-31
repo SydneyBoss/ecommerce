@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NOVA | Modern E-Commerce Experience</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            200: '#c7d2fe',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#312e81',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col selection:bg-brand-500 selection:text-white">
+
+    <!-- Top Announcement Bar -->
+    <div class="bg-slate-900 text-slate-300 text-xs py-2 px-4 text-center font-medium">
+        <span>✨ Free standard shipping on all orders over $100 | Spring Release 2026</span>
+    </div>
+
+    <!-- Navigation Header -->
+    <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-18 py-3 gap-4">
+                
+                <!-- Logo & Brand -->
+                <div class="flex items-center gap-3 cursor-pointer" onclick="resetFilters()">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 flex items-center justify-center text-white shadow-md shadow-brand-500/20">
+                        <i class="fa-solid fa-cube text-xl"></i>
+                    </div>
+                    <div>
+                        <span class="text-xl font-bold tracking-tight text-slate-900">NOVA<span class="text-brand-600">.</span></span>
+                        <span class="hidden sm:inline-block text-xs font-semibold uppercase tracking-wider text-slate-400 ml-1.5 px-2 py-0.5 rounded bg-slate-100">Store</span>
+                    </div>
+                </div>
+
+                <!-- Live Search Bar -->
+                <div class="flex-1 max-w-lg mx-2 hidden md:block">
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                        </div>
+                        <input type="text" id="searchInput"
+                               placeholder="Search laptops, headphones, apparel, homeware..."
+                               class="w-full pl-10 pr-10 py-2.5 bg-slate-100/80 focus:bg-white text-sm rounded-xl border border-transparent focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/10 transition-all">
+                        <button id="clearSearchBtn" class="hidden absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Right Action Icons -->
+                <div class="flex items-center gap-3">
+                    <!-- Orders Tracker Button -->
+                    <button id="openOrdersBtn" class="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-100 transition-colors">
+                        <i class="fa-solid fa-receipt text-slate-500"></i>
+                        <span class="hidden lg:inline">My Orders</span>
+                    </button>
+
+                    <!-- Cart Drawer Trigger Button -->
+                    <button id="openCartBtn" class="relative flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-medium text-sm transition-all shadow-sm">
+                        <i class="fa-solid fa-bag-shopping text-base"></i>
+                        <span class="hidden sm:inline">Cart</span>
+                        <span id="cartCountBadge" class="bg-brand-500 text-white text-xs px-2 py-0.5 rounded-full font-bold">0</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Mobile Search Bar -->
+            <div class="block md:hidden pb-3">
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                    </div>
+                    <input type="text" id="mobileSearchInput"
+                           placeholder="Search products..."
+                           class="w-full pl-10 pr-10 py-2.5 bg-slate-100 text-sm rounded-xl border border-transparent focus:bg-white focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/10 transition">
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Banner Section -->
+    <section class="relative bg-gradient-to-b from-indigo-50/60 via-white to-slate-50 border-b border-slate-200/80 overflow-hidden">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                <div class="lg:col-span-7 space-y-5 text-center lg:text-left">
+                    <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-brand-50 border border-brand-100 text-brand-700 text-xs font-semibold">
+                        <span class="w-2 h-2 rounded-full bg-brand-600 animate-pulse"></span>
+                        Handcrafted Minimalist Essentials
+                    </div>
+                    <h1 class="text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight">
+                        Engineered for style, <br class="hidden sm:block">
+                        <span class="text-transparent bg-clip-text bg-gradient-to-r from-brand-600 to-indigo-600">built for performance.</span>
+                    </h1>
+                    <p class="text-base sm:text-lg text-slate-600 max-w-xl mx-auto lg:mx-0">
+                        Explore our curated selection of high-fidelity audio, professional computing gear, minimalist everyday carry, and modern lifestyle products.
+                    </p>
+                    <div class="flex flex-wrap gap-3 justify-center lg:justify-start pt-2">
+                        <a href="#catalog" class="px-6 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm transition shadow-md shadow-brand-500/20 flex items-center gap-2">
+                            <span>Browse Catalog</span>
+                            <i class="fa-solid fa-arrow-down text-xs"></i>
+                        </a>
+                        <button onclick="filterByFeatured()" class="px-5 py-3 rounded-xl bg-white border border-slate-300 hover:border-slate-400 text-slate-700 font-semibold text-sm transition">
+                            ⭐ Featured Picks
+                        </button>
+                    </div>
+                </div>
+                <div class="lg:col-span-5 relative hidden lg:block">
+                    <div class="relative mx-auto max-w-sm rounded-3xl overflow-hidden shadow-2xl border-4 border-white bg-slate-900 group">
+                        <img src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80"
+                             alt="Featured Audio"
+                             class="w-full h-80 object-cover object-center group-hover:scale-105 transition-transform duration-500">
+                        <div class="absolute bottom-0 inset-x-0 p-5 bg-gradient-to-t from-slate-950/90 via-slate-950/60 to-transparent text-white">
+                            <span class="text-xs uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-brand-600 inline-block mb-1">Editor's Choice</span>
+                            <h3 class="text-lg font-bold">Aura ANC Wireless Headphones</h3>
+                            <p class="text-xs text-slate-300">Studio audio fidelity with next-gen spatial acoustic drivers.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Value Props Row -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12 pt-8 border-t border-slate-200/70 text-slate-600">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-brand-600 shadow-sm shrink-0">
+                        <i class="fa-solid fa-truck-fast"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-900">Free Express Shipping</h4>
+                        <p class="text-xs text-slate-500">Orders over $100</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-brand-600 shadow-sm shrink-0">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-900">2-Year Warranty</h4>
+                        <p class="text-xs text-slate-500">100% Guaranteed</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-brand-600 shadow-sm shrink-0">
+                        <i class="fa-solid fa-arrow-rotate-left"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-900">30-Day Hassle Returns</h4>
+                        <p class="text-xs text-slate-500">Easy self-service</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-brand-600 shadow-sm shrink-0">
+                        <i class="fa-solid fa-lock"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-900">Encrypted Checkout</h4>
+                        <p class="text-xs text-slate-500">Bank-level security</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Content: Product Catalog -->
+    <main id="catalog" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex-1 w-full">
+        
+        <!-- Filter & Category Toolbar -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 mb-8 border-b border-slate-200">
+            <!-- Category Pills -->
+            <div id="categoryPills" class="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-none">
+                <button onclick="filterCategory('all')"
+                        data-category="all"
+                        class="category-pill active px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap bg-brand-600 text-white shadow-sm transition">
+                    All Products
+                </button>
+                <!-- Categories dynamically loaded here -->
+            </div>
+
+            <!-- Sorting & Counter -->
+            <div class="flex items-center justify-between md:justify-end gap-3 shrink-0">
+                <span id="productCount" class="text-xs text-slate-500 font-medium">Loading products...</span>
+                <div class="relative">
+                    <select id="sortBy" onchange="applySorting()" class="text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-xl px-3 py-2 pr-8 appearance-none focus:outline-none focus:border-brand-500 cursor-pointer">
+                        <option value="default">Default: Featured First</option>
+                        <option value="price-asc">Price: Low to High</option>
+                        <option value="price-desc">Price: High to Low</option>
+                        <option value="rating">Highest Rated</option>
+                        <option value="name">Product Name (A-Z)</option>
+                    </select>
+                    <div class="absolute inset-y-0 right-0 pr-2.5 flex items-center pointer-events-none text-slate-400 text-xs">
+                        <i class="fa-solid fa-chevron-down"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Product Grid -->
+        <div id="productGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <!-- Skeletons populated during initial fetch -->
+        </div>
+
+        <!-- Empty State (hidden by default) -->
+        <div id="emptyState" class="hidden text-center py-20">
+            <div class="w-16 h-16 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto text-2xl mb-4">
+                <i class="fa-solid fa-box-open"></i>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900 mb-1">No products found</h3>
+            <p class="text-sm text-slate-500 max-w-md mx-auto mb-5">We couldn't find any products matching your search or filters. Try adjusting your criteria.</p>
+            <button onclick="resetFilters()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold rounded-xl transition">
+                Reset All Filters
+            </button>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-slate-400 text-sm mt-auto border-t border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+                <div class="space-y-3">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center text-white">
+                            <i class="fa-solid fa-cube text-sm"></i>
+                        </div>
+                        <span class="text-lg font-bold text-white tracking-tight">NOVA<span class="text-brand-500">.</span></span>
+                    </div>
+                    <p class="text-xs text-slate-400">
+                        Curated collection of next-generation gadgets, audio gear, apparel and lifestyle essentials.
+                    </p>
+                </div>
+                <div>
+                    <h5 class="text-xs font-bold uppercase tracking-wider text-white mb-3">Shop Categories</h5>
+                    <ul class="space-y-2 text-xs">
+                        <li><a href="javascript:void(0)" onclick="filterCategory('electronics')" class="hover:text-white transition">Electronics</a></li>
+                        <li><a href="javascript:void(0)" onclick="filterCategory('audio')" class="hover:text-white transition">Audio & Sound</a></li>
+                        <li><a href="javascript:void(0)" onclick="filterCategory('fashion')" class="hover:text-white transition">Fashion & Apparel</a></li>
+                        <li><a href="javascript:void(0)" onclick="filterCategory('home-living')" class="hover:text-white transition">Home & Living</a></li>
+                        <li><a href="javascript:void(0)" onclick="filterCategory('accessories')" class="hover:text-white transition">Everyday Carry</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h5 class="text-xs font-bold uppercase tracking-wider text-white mb-3">Developer & API</h5>
+                    <ul class="space-y-2 text-xs">
+                        <li><a href="/api/products" target="_blank" class="hover:text-white transition">Products API (<code class="text-brand-400">/api/products</code>)</a></li>
+                        <li><a href="/api/categories" target="_blank" class="hover:text-white transition">Categories API (<code class="text-brand-400">/api/categories</code>)</a></li>
+                        <li><a href="/api/orders" target="_blank" class="hover:text-white transition">Orders API (<code class="text-brand-400">/api/orders</code>)</a></li>
+                        <li><a href="/h2-console" target="_blank" class="hover:text-white transition">H2 In-Memory DB Console</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h5 class="text-xs font-bold uppercase tracking-wider text-white mb-3">System Info</h5>
+                    <p class="text-xs text-slate-400 mb-2">Powered by Java 24 & Spring Boot 3.4.2</p>
+                    <div class="flex items-center gap-2 text-xs text-emerald-400 font-medium">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                        Backend API Live & Operational
+                    </div>
+                </div>
+            </div>
+            <div class="pt-8 border-t border-slate-800 text-xs text-slate-500 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <span>&copy; 2026 NOVA Store Inc. All rights reserved.</span>
+                <div class="flex items-center gap-4 text-slate-400">
+                    <i class="fa-brands fa-cc-visa text-xl"></i>
+                    <i class="fa-brands fa-cc-mastercard text-xl"></i>
+                    <i class="fa-brands fa-cc-apple-pay text-xl"></i>
+                    <i class="fa-brands fa-cc-paypal text-xl"></i>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ==================== MODALS & DRAWERS ==================== -->
+
+    <!-- Shopping Cart Drawer -->
+    <div id="cartDrawer" class="fixed inset-0 z-50 overflow-hidden hidden" aria-labelledby="slide-over-title" role="dialog" aria-modal="true">
+        <!-- Backdrop -->
+        <div id="cartBackdrop" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity opacity-0" onclick="closeCart()"></div>
+
+        <div class="fixed inset-y-0 right-0 pl-10 max-w-full flex">
+            <div id="cartPanel" class="w-screen max-w-md bg-white shadow-2xl flex flex-col transform translate-x-full transition-transform ease-out duration-300">
+                <!-- Drawer Header -->
+                <div class="p-6 border-b border-slate-200 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-bag-shopping text-brand-600 text-lg"></i>
+                        <h2 class="text-lg font-bold text-slate-900">Your Shopping Bag</h2>
+                        <span id="drawerCartCount" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">0 items</span>
+                    </div>
+                    <button onclick="closeCart()" class="text-slate-400 hover:text-slate-600 p-1">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+
+                <!-- Free Shipping Progress -->
+                <div class="bg-indigo-50/70 p-4 border-b border-indigo-100/70">
+                    <div class="flex justify-between items-center text-xs font-semibold mb-1.5">
+                        <span id="shippingProgressText" class="text-indigo-900">Add $100.00 for FREE Shipping!</span>
+                        <span id="shippingProgressPercent" class="text-brand-600">0%</span>
+                    </div>
+                    <div class="w-full bg-indigo-200/60 rounded-full h-2 overflow-hidden">
+                        <div id="shippingProgressBar" class="bg-brand-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Cart Items Container -->
+                <div id="cartItemsList" class="flex-1 overflow-y-auto p-6 space-y-4 divide-y divide-slate-100">
+                    <!-- Populated dynamically -->
+                </div>
+
+                <!-- Empty Cart Template -->
+                <div id="cartEmptyState" class="hidden flex-1 flex flex-col items-center justify-center p-6 text-center">
+                    <div class="w-16 h-16 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center text-2xl mb-3">
+                        <i class="fa-solid fa-bag-shopping"></i>
+                    </div>
+                    <h3 class="text-base font-bold text-slate-800">Your cart is empty</h3>
+                    <p class="text-xs text-slate-500 mt-1 max-w-xs mb-4">Looks like you haven't added anything to your cart yet.</p>
+                    <button onclick="closeCart()" class="px-5 py-2.5 rounded-xl bg-brand-600 text-white font-semibold text-xs hover:bg-brand-700 transition">
+                        Start Shopping
+                    </button>
+                </div>
+
+                <!-- Drawer Footer Summary -->
+                <div id="cartFooter" class="p-6 bg-slate-50 border-t border-slate-200 space-y-4">
+                    <div class="space-y-1.5 text-xs text-slate-600">
+                        <div class="flex justify-between">
+                            <span>Subtotal</span>
+                            <span id="cartSubtotal" class="font-semibold text-slate-800">$0.00</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Estimated Shipping</span>
+                            <span id="cartShipping" class="font-semibold text-slate-800">$0.00</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Estimated Tax (7.5%)</span>
+                            <span id="cartTax" class="font-semibold text-slate-800">$0.00</span>
+                        </div>
+                        <div class="flex justify-between text-base font-bold text-slate-900 pt-2 border-t border-slate-200">
+                            <span>Order Total</span>
+                            <span id="cartTotal" class="text-brand-600">$0.00</span>
+                        </div>
+                    </div>
+
+                    <button id="checkoutBtn" onclick="openCheckoutModal()" class="w-full py-3.5 px-4 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm transition shadow-md shadow-brand-500/20 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-lock text-xs"></i>
+                        <span>Proceed to Checkout</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Quick View Modal -->
+    <div id="productModal" class="fixed inset-0 z-50 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div id="productModalBackdrop" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="closeProductModal()"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+            <div id="productModalContent" class="inline-block align-bottom bg-white rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full">
+                <!-- Modal content dynamically injected -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Checkout Modal -->
+    <div id="checkoutModal" class="fixed inset-0 z-50 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="closeCheckoutModal()"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+            <div class="inline-block align-bottom bg-white rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+                
+                <div class="p-6 sm:p-8">
+                    <div class="flex items-center justify-between pb-4 border-b border-slate-200">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center">
+                                <i class="fa-solid fa-shield-halved"></i>
+                            </div>
+                            <h3 class="text-lg font-bold text-slate-900">Secure Checkout</h3>
+                        </div>
+                        <button onclick="closeCheckoutModal()" class="text-slate-400 hover:text-slate-600">
+                            <i class="fa-solid fa-xmark text-lg"></i>
+                        </button>
+                    </div>
+
+                    <form id="checkoutForm" onsubmit="handlePlaceOrder(event)" class="mt-6 space-y-6">
+                        <!-- Customer Info -->
+                        <div>
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">1. Contact Information</h4>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Full Name *</label>
+                                    <input type="text" id="custName" required placeholder="John Doe"
+                                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Email Address *</label>
+                                    <input type="email" id="custEmail" required placeholder="john@example.com"
+                                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none">
+                                </div>
+                                <div class="sm:col-span-2">
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Phone Number</label>
+                                    <input type="tel" id="custPhone" placeholder="+1 (555) 000-0000"
+                                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Shipping Info -->
+                        <div>
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">2. Shipping Address</h4>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div class="sm:col-span-2">
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Street Address *</label>
+                                    <input type="text" id="custAddress" required placeholder="742 Evergreen Terrace"
+                                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">City *</label>
+                                    <input type="text" id="custCity" required placeholder="Springfield"
+                                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Postal Code *</label>
+                                    <input type="text" id="custPostal" required placeholder="97477"
+                                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Payment Method -->
+                        <div>
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">3. Payment Details (Simulation)</h4>
+                            <div class="grid grid-cols-3 gap-3 mb-4">
+                                <label class="payment-option cursor-pointer border-2 border-brand-500 bg-brand-50/50 rounded-xl p-3 text-center flex flex-col items-center gap-1 transition">
+                                    <input type="radio" name="paymentMethod" value="Credit Card" checked class="hidden">
+                                    <i class="fa-regular fa-credit-card text-brand-600 text-base"></i>
+                                    <span class="text-xs font-bold text-slate-800">Card</span>
+                                </label>
+                                <label class="payment-option cursor-pointer border-2 border-slate-200 rounded-xl p-3 text-center flex flex-col items-center gap-1 hover:border-slate-300 transition">
+                                    <input type="radio" name="paymentMethod" value="Apple Pay" class="hidden">
+                                    <i class="fa-brands fa-apple text-slate-700 text-base"></i>
+                                    <span class="text-xs font-bold text-slate-800">Apple Pay</span>
+                                </label>
+                                <label class="payment-option cursor-pointer border-2 border-slate-200 rounded-xl p-3 text-center flex flex-col items-center gap-1 hover:border-slate-300 transition">
+                                    <input type="radio" name="paymentMethod" value="Cash On Delivery" class="hidden">
+                                    <i class="fa-solid fa-money-bill-wave text-emerald-600 text-base"></i>
+                                    <span class="text-xs font-bold text-slate-800">COD</span>
+                                </label>
+                            </div>
+
+                            <div id="cardFields" class="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Card Number</label>
+                                    <input type="text" placeholder="4242 •••• •••• 4242" value="4242 4242 4242 4242"
+                                           class="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-sm focus:border-brand-500 focus:outline-none font-mono">
+                                </div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Expires</label>
+                                        <input type="text" placeholder="MM/YY" value="12/28"
+                                               class="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-sm focus:border-brand-500 focus:outline-none font-mono">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-700 mb-1">CVV</label>
+                                        <input type="password" placeholder="•••" value="888" maxlength="4"
+                                               class="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-sm focus:border-brand-500 focus:outline-none font-mono">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Summary & Place Order Button -->
+                        <div class="pt-4 border-t border-slate-200">
+                            <div class="flex justify-between items-center mb-4">
+                                <span class="text-sm font-medium text-slate-600">Total Due:</span>
+                                <span id="checkoutTotalAmount" class="text-2xl font-extrabold text-brand-600">$0.00</span>
+                            </div>
+
+                            <button type="submit" id="submitOrderBtn" class="w-full py-4 px-6 rounded-2xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-base transition shadow-lg shadow-brand-500/25 flex items-center justify-center gap-2">
+                                <span id="submitOrderSpinner" class="hidden">
+                                    <i class="fa-solid fa-circle-notch fa-spin"></i>
+                                </span>
+                                <span id="submitOrderText">Confirm & Place Order</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Order Confirmation Modal -->
+    <div id="orderSuccessModal" class="fixed inset-0 z-50 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+            <div class="inline-block align-bottom bg-white rounded-3xl text-center p-8 overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div class="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto text-3xl mb-4">
+                    <i class="fa-solid fa-circle-check"></i>
+                </div>
+                <h3 class="text-2xl font-extrabold text-slate-900 mb-1">Order Confirmed!</h3>
+                <p class="text-sm text-slate-500 mb-6">Thank you for your purchase. We've received your order and are preparing it for shipment.</p>
+
+                <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200 text-left space-y-3 mb-6">
+                    <div class="flex justify-between text-xs pb-2 border-b border-slate-200">
+                        <span class="text-slate-500">Order Number</span>
+                        <span id="confirmedOrderNumber" class="font-mono font-bold text-brand-600">-</span>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                        <span class="text-slate-500">Recipient</span>
+                        <span id="confirmedCustomerName" class="font-semibold text-slate-800">-</span>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                        <span class="text-slate-500">Estimated Delivery</span>
+                        <span class="font-semibold text-slate-800">3-5 Business Days</span>
+                    </div>
+                    <div class="flex justify-between text-xs pt-2 border-t border-slate-200">
+                        <span class="text-slate-700 font-bold">Total Paid</span>
+                        <span id="confirmedTotalAmount" class="font-bold text-slate-900">$0.00</span>
+                    </div>
+                </div>
+
+                <div class="flex gap-3">
+                    <button onclick="closeSuccessModalAndOpenOrders()" class="flex-1 py-3 px-4 rounded-xl border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-50 transition">
+                        View Order Details
+                    </button>
+                    <button onclick="closeSuccessModal()" class="flex-1 py-3 px-4 rounded-xl bg-brand-600 text-white text-xs font-bold hover:bg-brand-700 transition">
+                        Continue Shopping
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Order History / Tracker Modal -->
+    <div id="ordersModal" class="fixed inset-0 z-50 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="closeOrdersModal()"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+            <div class="inline-block align-bottom bg-white rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full">
+                <div class="p-6 sm:p-8">
+                    <div class="flex items-center justify-between pb-4 border-b border-slate-200">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-receipt text-brand-600 text-lg"></i>
+                            <h3 class="text-lg font-bold text-slate-900">Order History & Tracking</h3>
+                        </div>
+                        <button onclick="closeOrdersModal()" class="text-slate-400 hover:text-slate-600">
+                            <i class="fa-solid fa-xmark text-lg"></i>
+                        </button>
+                    </div>
+
+                    <!-- Search / Lookup by Order Number -->
+                    <div class="mt-4 flex gap-2">
+                        <input type="text" id="lookupOrderNumber" placeholder="Look up order by number (e.g. ORD-20261031-XXXX)"
+                               class="flex-1 px-3.5 py-2 rounded-xl border border-slate-300 text-xs focus:border-brand-500 focus:outline-none">
+                        <button onclick="lookupSpecificOrder()" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl transition">
+                            Track
+                        </button>
+                    </div>
+
+                    <!-- Orders List Container -->
+                    <div id="ordersListContainer" class="mt-6 space-y-4 max-h-96 overflow-y-auto pr-1">
+                        <!-- Injected dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- Main JavaScript Application Logic -->
+    <script src="/js/app.js"></script>
+</body>
+</html>
