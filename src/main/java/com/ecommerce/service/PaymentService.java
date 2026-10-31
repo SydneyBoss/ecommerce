@@ -1,6 +1,8 @@
 package com.ecommerce.service;
 
 import com.ecommerce.dto.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -8,14 +10,23 @@ import org.springframework.stereotype.Service;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.net.URI;
 import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.HexFormat;
 import java.util.UUID;
 
 @Service
 public class PaymentService {
+
+    private static final Logger log = LoggerFactory.getLogger(PaymentService.class);
 
     @Value("${payment.upi.vpa:novastore@okhdfcbank}")
     private String merchantUpiVpa;
@@ -23,10 +34,10 @@ public class PaymentService {
     @Value("${payment.upi.merchant-name:NOVA India Store}")
     private String merchantName;
 
-    @Value("${payment.razorpay.key-id:rzp_test_51gH982Kls9}")
+    @Value("${payment.razorpay.key-id:rzp_test_TuVcSh0WCborg8}")
     private String razorpayKeyId;
 
-    @Value("${payment.razorpay.key-secret:s8x7Q3X2yM9J14PZkLkF8}")
+    @Value("${payment.razorpay.key-secret:V5rhHS3AsPM695gjy5lSclsL}")
     private String razorpayKeySecret;
 
     @Value("${payment.test-mode:true}")
@@ -86,12 +97,57 @@ public class PaymentService {
             response.setUpiQrData(response.getUpiUri());
         }
 
-        // 2. Build Razorpay Order Reference
-        String rzpOrderId = "order_" + order.getOrderNumber().replace("-", "_") + "_" + UUID.randomUUID().toString().substring(0, 4);
+        // 2. Build or Create Razorpay Order Reference
+        String rzpOrderId;
+        if (method.contains("RAZORPAY")) {
+            rzpOrderId = createRazorpayOrderViaApi(order.getOrderNumber(), amount);
+        } else {
+            rzpOrderId = "order_" + order.getOrderNumber().replace("-", "_") + "_" + UUID.randomUUID().toString().substring(0, 4);
+        }
         response.setRazorpayOrderId(rzpOrderId);
         response.setStatus("INITIATED");
 
         return response;
+    }
+
+    private String createRazorpayOrderViaApi(String orderNumber, BigDecimal amount) {
+        try {
+            long amountInPaise = amount.multiply(new BigDecimal("100")).setScale(0, RoundingMode.HALF_UP).longValue();
+            String jsonPayload = String.format("{\"amount\":%d,\"currency\":\"INR\",\"receipt\":\"%s\"}",
+                    amountInPaise, orderNumber);
+
+            String auth = razorpayKeyId + ":" + razorpayKeySecret;
+            String encodedAuth = Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.UTF_8));
+
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(5))
+                    .build();
+
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.razorpay.com/v1/orders"))
+                    .header("Content-Type", "application/json")
+                    .header("Authorization", "Basic " + encodedAuth)
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
+                    .build();
+
+            HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() == 200 || resp.statusCode() == 201) {
+                String body = resp.body();
+                int idIdx = body.indexOf("\"id\":\"");
+                if (idIdx != -1) {
+                    int start = idIdx + 6;
+                    int end = body.indexOf("\"", start);
+                    String createdOrderId = body.substring(start, end);
+                    log.info("[RAZORPAY-ORDER-CREATED] Live Razorpay Order created: {} for Order {}", createdOrderId, orderNumber);
+                    return createdOrderId;
+                }
+            } else {
+                log.warn("[RAZORPAY-ORDER-ERROR] Status {}: {}", resp.statusCode(), resp.body());
+            }
+        } catch (Exception e) {
+            log.warn("[RAZORPAY-ORDER-EXCEPTION] Failed to call Razorpay API: {}", e.getMessage());
+        }
+        return "order_" + orderNumber.replace("-", "_") + "_" + UUID.randomUUID().toString().substring(0, 4);
     }
 
     public PaymentVerifyResponse verifyPayment(PaymentVerifyRequest request) {

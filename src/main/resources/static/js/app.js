@@ -1311,6 +1311,73 @@ function handleRazorpayCheckout(order, initData) {
     activeRzpSession.order = order;
     activeRzpSession.initData = initData;
 
+    if (typeof Razorpay !== 'undefined') {
+        try {
+            const options = {
+                key: initData.razorpayKeyId || 'rzp_test_TuVcSh0WCborg8',
+                amount: Math.round(order.totalAmount * 100), // paise
+                currency: "INR",
+                name: "NOVA India Store",
+                description: `Order ${order.orderNumber}`,
+                image: "https://cdn-icons-png.flaticon.com/512/891/891462.png",
+                order_id: initData.razorpayOrderId,
+                handler: async function (response) {
+                    try {
+                        const verifyRes = await fetch('/api/payments/verify', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                orderNumber: order.orderNumber,
+                                paymentMethod: 'RAZORPAY',
+                                razorpayOrderId: response.razorpay_order_id,
+                                razorpayPaymentId: response.razorpay_payment_id,
+                                razorpaySignature: response.razorpay_signature
+                            })
+                        });
+                        const vData = await verifyRes.json();
+                        if (!verifyRes.ok) throw new Error(vData.message || 'Signature verification failed');
+
+                        order.paymentStatus = 'PAID';
+                        order.paymentTransactionId = response.razorpay_payment_id;
+                        order.paymentMethod = 'Razorpay Test Checkout';
+                        finishSuccessfulOrder(order);
+                        showToast(`Payment Approved! Razorpay ID: ${response.razorpay_payment_id}`, 'success');
+                    } catch (err) {
+                        showToast(err.message || 'Verification error', 'error');
+                    }
+                },
+                prefill: {
+                    name: order.customerName,
+                    email: order.customerEmail,
+                    contact: order.customerPhone ? order.customerPhone.replace(/[^0-9]/g, '') : '9876543210'
+                },
+                notes: {
+                    orderNumber: order.orderNumber,
+                    deliveryArea: order.area || order.city
+                },
+                theme: { color: "#4f46e5" },
+                modal: {
+                    ondismiss: function () {
+                        showToast('Razorpay popup closed', 'info');
+                    }
+                }
+            };
+
+            const rzp = new Razorpay(options);
+            rzp.on('payment.failed', function (resp) {
+                showToast(`Payment failed: ${resp.error.description}`, 'error');
+            });
+            rzp.open();
+            return;
+        } catch (e) {
+            console.warn('Razorpay SDK error, falling back to sandbox modal:', e);
+        }
+    }
+
+    openRzpSandboxFallbackModal(order, initData);
+}
+
+function openRzpSandboxFallbackModal(order, initData) {
     document.getElementById('rzpModalAmount').innerText = `₹${formatINR(order.totalAmount)}`;
     document.getElementById('rzpModalOrderNumber').innerText = order.orderNumber;
     switchRzpTab('upi');
