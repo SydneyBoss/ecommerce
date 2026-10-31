@@ -634,9 +634,186 @@ function openCheckoutModal() {
     const { total } = calculateCartTotals();
     document.getElementById('checkoutTotalAmount').innerText = `$${total.toFixed(2)}`;
     document.getElementById('checkoutModal')?.classList.remove('hidden');
+
+    // Initialize or refresh delivery map
+    setTimeout(() => {
+        const lat = parseFloat(document.getElementById('custLatitude')?.value) || 17.4483;
+        const lon = parseFloat(document.getElementById('custLongitude')?.value) || 78.3839;
+        initOrRefreshDeliveryMap(lat, lon);
+    }, 120);
 }
 
 function closeCheckoutModal() { document.getElementById('checkoutModal')?.classList.add('hidden'); }
+
+// -------------------------------------------------------------
+// LEAFLET MAP & INDIAN PIN CODE IDENTIFIER
+// -------------------------------------------------------------
+let deliveryMapInstance = null;
+let deliveryMarkerInstance = null;
+let pincodeDebounceTimer = null;
+
+function initOrRefreshDeliveryMap(lat = 17.4483, lon = 78.3839, areaLabel = "HITEC City / Madhapur, Hyderabad") {
+    const mapEl = document.getElementById('deliveryMap');
+    if (!mapEl) return;
+
+    if (!deliveryMapInstance) {
+        deliveryMapInstance = L.map('deliveryMap').setView([lat, lon], 14);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(deliveryMapInstance);
+
+        deliveryMarkerInstance = L.marker([lat, lon], { draggable: true }).addTo(deliveryMapInstance);
+        deliveryMarkerInstance.bindPopup(`<b>${areaLabel}</b><br><span class="text-[10px] text-slate-500">📍 Drag pin to your doorstep</span>`).openPopup();
+
+        // Marker drag handler
+        deliveryMarkerInstance.on('dragend', function (e) {
+            const pos = e.target.getLatLng();
+            document.getElementById('custLatitude').value = pos.lat;
+            document.getElementById('custLongitude').value = pos.lng;
+            deliveryMarkerInstance.bindPopup(`<b>Doorstep Pin Set</b><br>Lat: ${pos.lat.toFixed(4)}, Lon: ${pos.lng.toFixed(4)}`).openPopup();
+            reverseGeocodeCoordinates(pos.lat, pos.lng);
+        });
+
+        // Click anywhere on map to reposition pin
+        deliveryMapInstance.on('click', function (e) {
+            deliveryMarkerInstance.setLatLng(e.latlng);
+            document.getElementById('custLatitude').value = e.latlng.lat;
+            document.getElementById('custLongitude').value = e.latlng.lng;
+            deliveryMarkerInstance.bindPopup(`<b>Doorstep Pin Set</b><br>Lat: ${e.latlng.lat.toFixed(4)}, Lon: ${e.latlng.lng.toFixed(4)}`).openPopup();
+            reverseGeocodeCoordinates(e.latlng.lat, e.latlng.lng);
+        });
+    } else {
+        setTimeout(() => {
+            deliveryMapInstance.invalidateSize();
+            deliveryMapInstance.setView([lat, lon], 14);
+            if (deliveryMarkerInstance) {
+                deliveryMarkerInstance.setLatLng([lat, lon]);
+                deliveryMarkerInstance.bindPopup(`<b>${areaLabel}</b><br><span class="text-[10px] text-slate-500">📍 Drag pin to your doorstep</span>`).openPopup();
+            }
+        }, 120);
+    }
+}
+
+async function reverseGeocodeCoordinates(lat, lon) {
+    try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`, {
+            headers: { 'User-Agent': 'NovaEcommerceApp/1.0 (contact@novastore.in)' }
+        });
+        if (res.ok) {
+            const data = await res.json();
+            if (data.address) {
+                const sub = data.address.suburb || data.address.neighbourhood || data.address.road;
+                if (sub) {
+                    showToast(`📍 Doorstep refined near: ${sub}`, 'info');
+                }
+            }
+        }
+    } catch (e) {}
+}
+
+function handlePincodeInput(pincode) {
+    const cleanPin = (pincode || '').replace(/[^0-9]/g, '');
+    const statusEl = document.getElementById('pincodeStatus');
+    const spinnerEl = document.getElementById('pincodeSpinner');
+
+    if (cleanPin.length !== 6) {
+        if (statusEl) {
+            statusEl.className = 'text-[11px] font-semibold text-slate-400';
+            statusEl.innerText = cleanPin.length === 0 ? 'Type 6 digits for instant map lookup' : `${6 - cleanPin.length} more digit(s) needed...`;
+        }
+        return;
+    }
+
+    if (spinnerEl) spinnerEl.classList.remove('hidden');
+    if (statusEl) {
+        statusEl.className = 'text-[11px] font-semibold text-brand-600 animate-pulse';
+        statusEl.innerText = 'Detecting area & locating on map...';
+    }
+
+    clearTimeout(pincodeDebounceTimer);
+    pincodeDebounceTimer = setTimeout(async () => {
+        await lookupIndianPincode(cleanPin);
+    }, 200);
+}
+
+function selectPresetPincode(pin) {
+    const input = document.getElementById('custPostal');
+    if (input) {
+        input.value = pin;
+        handlePincodeInput(pin);
+    }
+}
+
+async function lookupIndianPincode(cleanPin) {
+    const statusEl = document.getElementById('pincodeStatus');
+    const spinnerEl = document.getElementById('pincodeSpinner');
+    const areaInput = document.getElementById('custArea');
+    const cityInput = document.getElementById('custCity');
+    const stateInput = document.getElementById('custState');
+    const areaLabel = document.getElementById('mapAreaLabel');
+
+    try {
+        const res = await fetch(`/api/location/pincode/${cleanPin}`);
+        if (!res.ok) throw new Error('Lookup failed');
+        const data = await res.json();
+
+        let area = data.area || '';
+        let city = data.city || '';
+        let state = data.state || '';
+        let lat = data.latitude || 20.5937;
+        let lon = data.longitude || 78.9629;
+
+        if (data.raw) {
+            try {
+                const parsed = JSON.parse(data.raw);
+                if (Array.isArray(parsed) && parsed[0]?.PostOffice?.length > 0) {
+                    const po = parsed[0].PostOffice[0];
+                    area = po.Name;
+                    city = po.District;
+                    state = po.State;
+                }
+            } catch (e) {}
+        }
+
+        if (area && areaInput) areaInput.value = area;
+        if (city && cityInput) cityInput.value = city;
+        if (state && stateInput) stateInput.value = state;
+
+        document.getElementById('custLatitude').value = lat;
+        document.getElementById('custLongitude').value = lon;
+
+        const displayName = `${area ? area + ', ' : ''}${city}, ${state} (${cleanPin})`;
+        if (areaLabel) areaLabel.innerText = displayName;
+
+        if (statusEl) {
+            statusEl.className = 'text-[11px] font-bold text-emerald-600';
+            statusEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> ${displayName}`;
+        }
+
+        // Fly map to Indian neighborhood coordinates
+        if (deliveryMapInstance) {
+            deliveryMapInstance.flyTo([lat, lon], 14, { animate: true, duration: 1.2 });
+            if (deliveryMarkerInstance) {
+                deliveryMarkerInstance.setLatLng([lat, lon]);
+                deliveryMarkerInstance.bindPopup(`<b>Delivering to: ${area || cleanPin}</b><br>${city}, ${state} - ${cleanPin}<br><span class="text-[10px] text-brand-600">📍 Drag marker to adjust exact doorstep</span>`).openPopup();
+            }
+        } else {
+            initOrRefreshDeliveryMap(lat, lon, displayName);
+        }
+
+        showToast(`📍 Located PIN ${cleanPin}: ${area || city}, ${state}`, 'success');
+
+    } catch (err) {
+        console.error('Error looking up PIN code:', err);
+        if (statusEl) {
+            statusEl.className = 'text-[11px] font-bold text-amber-600';
+            statusEl.innerText = 'Could not auto-detect area. Please enter details manually.';
+        }
+    } finally {
+        if (spinnerEl) spinnerEl.classList.add('hidden');
+    }
+}
 
 async function handlePlaceOrder(event) {
     event.preventDefault();
@@ -653,11 +830,15 @@ async function handlePlaceOrder(event) {
     const orderPayload = {
         customerName: document.getElementById('custName').value.trim(),
         customerEmail: document.getElementById('custEmail').value.trim(),
-        customerPhone: document.getElementById('custPhone')?.value.trim(),
+        customerPhone: '+91 ' + document.getElementById('custPhone').value.trim(),
         shippingAddress: document.getElementById('custAddress').value.trim(),
-        city: document.getElementById('custCity').value.trim(),
+        area: document.getElementById('custArea')?.value.trim(),
+        city: document.getElementById('custCity')?.value.trim(),
+        state: document.getElementById('custState')?.value.trim(),
         postalCode: document.getElementById('custPostal').value.trim(),
-        country: 'United States',
+        country: 'India',
+        latitude: parseFloat(document.getElementById('custLatitude')?.value) || 17.4483,
+        longitude: parseFloat(document.getElementById('custLongitude')?.value) || 78.3839,
         paymentMethod: document.querySelector('input[name="paymentMethod"]:checked')?.value || 'Credit Card',
         items: state.cart.map(item => ({ productId: item.id, quantity: item.quantity }))
     };
@@ -694,6 +875,11 @@ function showOrderConfirmation(order) {
     document.getElementById('confirmedOrderNumber').innerText = order.orderNumber;
     document.getElementById('confirmedCustomerName').innerText = order.customerName;
     document.getElementById('confirmedTotalAmount').innerText = `$${Number(order.totalAmount).toFixed(2)}`;
+
+    const addrStr = `${order.shippingAddress}, ${order.area ? order.area + ', ' : ''}${order.city}, ${order.state || ''} - ${order.postalCode}, India 🇮🇳`;
+    const addrEl = document.getElementById('confirmedAddress');
+    if (addrEl) addrEl.innerText = addrStr;
+
     document.getElementById('orderSuccessModal')?.classList.remove('hidden');
 }
 
@@ -784,6 +970,16 @@ function renderCustomerOrderCard(order) {
                 </span>
             </div>
             <div class="divide-y divide-slate-100">${itemsHtml}</div>
+            
+            <!-- Indian Delivery Location -->
+            <div class="text-[11px] text-slate-600 bg-white rounded-xl p-2.5 border border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                    <span class="font-bold text-slate-800"><i class="fa-solid fa-location-dot text-brand-600 mr-1"></i>Delivery:</span>
+                    <span>${escapeHtml(order.shippingAddress || '')}, ${order.area ? escapeHtml(order.area) + ', ' : ''}${escapeHtml(order.city || '')}, ${escapeHtml(order.state || '')} - <strong>${escapeHtml(order.postalCode || '')}</strong> (India)</span>
+                </div>
+                ${order.latitude ? `<span class="font-mono text-[10px] text-brand-700 bg-brand-50 px-2 py-0.5 rounded border border-brand-200">📍 ${order.latitude.toFixed(4)}, ${order.longitude.toFixed(4)}</span>` : ''}
+            </div>
+
             <div class="pt-2 border-t border-slate-200 flex flex-wrap justify-between items-center text-xs">
                 <span class="text-slate-500">Recipient: <strong class="text-slate-800">${escapeHtml(order.customerName)}</strong></span>
                 <span class="text-sm font-extrabold text-slate-900">Total: $${Number(order.totalAmount).toFixed(2)}</span>
@@ -1024,7 +1220,10 @@ function renderAdminOrdersTable() {
                 </td>
                 <td class="py-3 px-4">
                     <div class="font-bold text-slate-800">${escapeHtml(ord.customerName)}</div>
-                    <div class="text-[11px] text-slate-400">${escapeHtml(ord.customerEmail)}</div>
+                    <div class="text-[11px] text-slate-500 font-medium">${escapeHtml(ord.customerPhone || ord.customerEmail)}</div>
+                    <div class="text-[10px] text-slate-400 mt-0.5" title="${escapeHtml(ord.shippingAddress || '')}">
+                        📍 ${escapeHtml(ord.area ? ord.area + ', ' : '')}${escapeHtml(ord.city || '')} - ${escapeHtml(ord.postalCode || '')}
+                    </div>
                 </td>
                 <td class="py-3 px-4 font-medium text-slate-700">${itemCount} item${itemCount === 1 ? '' : 's'}</td>
                 <td class="py-3 px-4 font-mono font-bold text-slate-900">$${Number(ord.totalAmount).toFixed(2)}</td>

@@ -17,9 +17,13 @@ public class OrderResponse {
     private String customerEmail;
     private String customerPhone;
     private String shippingAddress;
+    private String area;
     private String city;
+    private String state;
     private String postalCode;
     private String country;
+    private Double latitude;
+    private Double longitude;
     private String paymentMethod;
     private BigDecimal subtotalAmount;
     private BigDecimal shippingFee;
@@ -61,9 +65,13 @@ public class OrderResponse {
         this.customerEmail = order.getCustomerEmail();
         this.customerPhone = order.getCustomerPhone();
         this.shippingAddress = order.getShippingAddress();
+        this.area = order.getArea();
         this.city = order.getCity();
+        this.state = order.getState();
         this.postalCode = order.getPostalCode();
         this.country = order.getCountry();
+        this.latitude = order.getLatitude();
+        this.longitude = order.getLongitude();
         this.paymentMethod = order.getPaymentMethod();
         this.subtotalAmount = order.getSubtotalAmount();
         this.shippingFee = order.getShippingFee();
@@ -84,9 +92,13 @@ public class OrderResponse {
     public String getCustomerEmail() { return customerEmail; }
     public String getCustomerPhone() { return customerPhone; }
     public String getShippingAddress() { return shippingAddress; }
+    public String getArea() { return area; }
     public String getCity() { return city; }
+    public String getState() { return state; }
     public String getPostalCode() { return postalCode; }
     public String getCountry() { return country; }
+    public Double getLatitude() { return latitude; }
+    public Double getLongitude() { return longitude; }
     public String getPaymentMethod() { return paymentMethod; }
     public BigDecimal getSubtotalAmount() { return subtotalAmount; }
     public BigDecimal getShippingFee() { return shippingFee; }

@@ -48,9 +48,13 @@ public class OrderService {
         order.setCustomerEmail(request.getCustomerEmail());
         order.setCustomerPhone(request.getCustomerPhone());
         order.setShippingAddress(request.getShippingAddress());
+        order.setArea(request.getArea());
         order.setCity(request.getCity());
+        order.setState(request.getState());
         order.setPostalCode(request.getPostalCode());
-        order.setCountry(request.getCountry());
+        order.setCountry(request.getCountry() != null && !request.getCountry().isBlank() ? request.getCountry() : "India");
+        order.setLatitude(request.getLatitude());
+        order.setLongitude(request.getLongitude());
         order.setPaymentMethod(request.getPaymentMethod() != null ? request.getPaymentMethod() : "Credit Card");
         order.setStatus(OrderStatus.CONFIRMED);
         order.setCreatedAt(LocalDateTime.now());

@@ -20,9 +20,13 @@ public class OrderRequest {
     @NotBlank(message = "Shipping address is required")
     private String shippingAddress;
 
+    private String area;
     private String city;
+    private String state;
     private String postalCode;
-    private String country;
+    private String country = "India";
+    private Double latitude;
+    private Double longitude;
 
     private String paymentMethod = "Credit Card";
 
@@ -62,6 +66,38 @@ public class OrderRequest {
 
     public void setShippingAddress(String shippingAddress) {
         this.shippingAddress = shippingAddress;
+    }
+
+    public String getArea() {
+        return area;
+    }
+
+    public void setArea(String area) {
+        this.area = area;
+    }
+
+    public String getState() {
+        return state;
+    }
+
+    public void setState(String state) {
+        this.state = state;
+    }
+
+    public Double getLatitude() {
+        return latitude;
+    }
+
+    public void setLatitude(Double latitude) {
+        this.latitude = latitude;
+    }
+
+    public Double getLongitude() {
+        return longitude;
+    }
+
+    public void setLongitude(Double longitude) {
+        this.longitude = longitude;
     }
 
     public String getCity() {

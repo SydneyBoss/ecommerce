@@ -83,3 +83,21 @@ html {
     0% { background-position: -200% 0; }
     100% { background-position: 200% 0; }
 }
+
+/* Leaflet Map Customizations */
+#deliveryMap {
+    height: 240px;
+    border-radius: 1rem;
+    z-index: 10;
+}
+
+.leaflet-popup-content-wrapper {
+    border-radius: 12px;
+    font-family: inherit;
+    font-size: 11px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.custom-map-pin {
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
+}
