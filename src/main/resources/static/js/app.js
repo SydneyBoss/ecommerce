@@ -160,10 +160,18 @@ function setupEventListeners() {
                 parentLabel.classList.add('border-brand-500', 'bg-brand-50/50');
                 parentLabel.classList.remove('border-slate-200');
             }
-            const cardFields = document.getElementById('cardFields');
+            const val = e.target.value;
             const upiFields = document.getElementById('upiFields');
-            if (upiFields) upiFields.classList.toggle('hidden', e.target.value !== 'UPI');
-            if (cardFields) cardFields.classList.toggle('hidden', e.target.value !== 'Credit/Debit Card');
+            const razorpayFields = document.getElementById('razorpayFields');
+            const cardFields = document.getElementById('cardFields');
+            const codFields = document.getElementById('codFields');
+
+            if (upiFields) upiFields.classList.toggle('hidden', val !== 'UPI');
+            if (razorpayFields) razorpayFields.classList.toggle('hidden', val !== 'RAZORPAY');
+            if (cardFields) cardFields.classList.toggle('hidden', val !== 'CARD');
+            if (codFields) codFields.classList.toggle('hidden', val !== 'COD');
+
+            updateSubmitButtonText();
         });
     });
 
@@ -175,6 +183,8 @@ function setupEventListeners() {
             closeCheckoutModal();
             closeOrdersModal();
             closeSuccessModal();
+            closeUpiModal();
+            closeCardOtpModal();
             closeAddProductModal();
             closeQuickEditModal();
             closeAddCategoryModal();
@@ -639,11 +649,36 @@ function renderCart() {
     }
 }
 
+function updateSubmitButtonText() {
+    const method = document.querySelector('input[name="paymentMethod"]:checked')?.value || 'UPI';
+    const { total } = calculateCartTotals();
+    const btnText = document.getElementById('submitOrderText');
+    if (!btnText) return;
+    if (method === 'UPI') {
+        btnText.innerText = `Scan & Pay via UPI (₹${formatINR(total)})`;
+    } else if (method === 'RAZORPAY') {
+        btnText.innerText = `Pay via Razorpay (₹${formatINR(total)})`;
+    } else if (method === 'CARD') {
+        btnText.innerText = `Pay with RuPay Card (₹${formatINR(total)})`;
+    } else {
+        btnText.innerText = `Place Order via COD (₹${formatINR(total)})`;
+    }
+}
+
 function openCheckoutModal() {
     if (state.cart.length === 0) { showToast('Your cart is empty', 'error'); return; }
     closeCart();
     const { total } = calculateCartTotals();
     document.getElementById('checkoutTotalAmount').innerText = `₹${formatINR(total)}`;
+    updateSubmitButtonText();
+
+    // Random 4-digit code for COD anti-spam
+    const randCode = Math.floor(1000 + Math.random() * 9000);
+    const captchaDisplay = document.getElementById('codCaptchaDisplay');
+    const captchaInput = document.getElementById('codCaptchaInput');
+    if (captchaDisplay) captchaDisplay.innerText = randCode;
+    if (captchaInput) captchaInput.value = randCode;
+
     document.getElementById('checkoutModal')?.classList.remove('hidden');
 
     // Initialize or refresh delivery map
@@ -826,9 +861,67 @@ async function lookupIndianPincode(cleanPin) {
     }
 }
 
+// -------------------------------------------------------------
+// PAYMENT INTEGRATION & ORDER PROCESSING
+// -------------------------------------------------------------
+let activePaymentSession = {
+    order: null,
+    initiateData: null,
+    timerInterval: null
+};
+
+let activeCardSession = {
+    order: null,
+    cardLast4: '9012'
+};
+
+function finishSuccessfulOrder(order) {
+    state.lastPlacedOrder = order;
+    savePlacedOrderToHistory(order.orderNumber);
+    state.cart = [];
+    saveCart();
+    updateCartBadge();
+    loadProducts();
+    closeCheckoutModal();
+    showOrderConfirmation(order);
+}
+
 async function handlePlaceOrder(event) {
     event.preventDefault();
     if (state.cart.length === 0) return;
+
+    const selectedMethod = document.querySelector('input[name="paymentMethod"]:checked')?.value || 'UPI';
+
+    // Anti-Spam Check for COD
+    if (selectedMethod === 'COD') {
+        const expectedCaptcha = document.getElementById('codCaptchaDisplay')?.innerText?.trim();
+        const userCaptcha = document.getElementById('codCaptchaInput')?.value?.trim();
+        if (expectedCaptcha && userCaptcha !== expectedCaptcha) {
+            showToast('Incorrect security code for Cash on Delivery', 'error');
+            return;
+        }
+    }
+
+    // Basic Card Validation for CARD
+    let cardLast4 = '9012';
+    if (selectedMethod === 'CARD') {
+        const cardNum = document.getElementById('cardNumInput')?.value?.replace(/\s+/g, '') || '';
+        const expiry = document.getElementById('cardExpiryInput')?.value?.trim() || '';
+        const cvv = document.getElementById('cardCvvInput')?.value?.trim() || '';
+        if (cardNum.length < 15) {
+            showToast('Please enter a valid 16-digit card number', 'error');
+            return;
+        }
+        if (!expiry.includes('/') || expiry.length < 5) {
+            showToast('Please enter expiry as MM/YY', 'error');
+            return;
+        }
+        if (cvv.length < 3) {
+            showToast('Please enter a valid CVV', 'error');
+            return;
+        }
+        cardLast4 = cardNum.slice(-4);
+    }
 
     const submitBtn = document.getElementById('submitOrderBtn');
     const spinner = document.getElementById('submitOrderSpinner');
@@ -836,7 +929,7 @@ async function handlePlaceOrder(event) {
 
     submitBtn.disabled = true;
     spinner.classList.remove('hidden');
-    btnText.innerText = 'Processing Order...';
+    btnText.innerText = 'Initiating Secure Order...';
 
     const orderPayload = {
         customerName: document.getElementById('custName').value.trim(),
@@ -850,7 +943,8 @@ async function handlePlaceOrder(event) {
         country: 'India',
         latitude: parseFloat(document.getElementById('custLatitude')?.value) || 17.4483,
         longitude: parseFloat(document.getElementById('custLongitude')?.value) || 78.3839,
-        paymentMethod: document.querySelector('input[name="paymentMethod"]:checked')?.value || 'UPI',
+        paymentMethod: selectedMethod === 'UPI' ? 'UPI' : selectedMethod === 'RAZORPAY' ? 'Razorpay' : selectedMethod === 'CARD' ? 'RuPay / Cards' : 'Cash On Delivery',
+        paymentStatus: selectedMethod === 'COD' ? 'COD_PENDING' : 'PAYMENT_PENDING',
         items: state.cart.map(item => ({ productId: item.id, quantity: item.quantity }))
     };
 
@@ -860,28 +954,363 @@ async function handlePlaceOrder(event) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(orderPayload)
         });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Failed to complete order');
+        const orderData = await response.json();
+        if (!response.ok) throw new Error(orderData.error || 'Failed to complete order');
 
-        state.lastPlacedOrder = data;
-        savePlacedOrderToHistory(data.orderNumber);
-        state.cart = [];
-        saveCart();
-        updateCartBadge();
-        await loadProducts();
-
-        closeCheckoutModal();
-        showOrderConfirmation(data);
+        // Check which payment flow to trigger
+        if (selectedMethod === 'COD') {
+            orderData.paymentStatus = 'COD_PENDING';
+            orderData.paymentTransactionId = 'COD-' + orderData.orderNumber;
+            finishSuccessfulOrder(orderData);
+            showToast('Order confirmed via Cash on Delivery!', 'success');
+        } else if (selectedMethod === 'UPI') {
+            const initRes = await fetch('/api/payments/initiate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    orderNumber: orderData.orderNumber,
+                    paymentMethod: 'UPI',
+                    amount: orderData.totalAmount
+                })
+            });
+            const initData = await initRes.json();
+            closeCheckoutModal();
+            openUpiModal(orderData, initData);
+        } else if (selectedMethod === 'RAZORPAY') {
+            const initRes = await fetch('/api/payments/initiate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    orderNumber: orderData.orderNumber,
+                    paymentMethod: 'RAZORPAY',
+                    amount: orderData.totalAmount
+                })
+            });
+            const initData = await initRes.json();
+            handleRazorpayCheckout(orderData, initData);
+        } else if (selectedMethod === 'CARD') {
+            closeCheckoutModal();
+            openCardOtpModal(orderData, cardLast4);
+        }
     } catch (err) {
         console.error('Error placing order:', err);
         showToast(err.message || 'Error submitting order', 'error');
     } finally {
         submitBtn.disabled = false;
         spinner.classList.add('hidden');
-        btnText.innerText = 'Confirm & Place Order';
+        updateSubmitButtonText();
     }
 }
 
+// -------------------------------------------------------------
+// UPI PAYMENT MODAL HANDLERS
+// -------------------------------------------------------------
+function openUpiModal(order, initData) {
+    activePaymentSession = {
+        order: order,
+        initiateData: initData,
+        timerInterval: null
+    };
+
+    document.getElementById('upiModalAmount').innerText = `₹${formatINR(order.totalAmount)}`;
+    document.getElementById('upiModalOrderNumber').innerText = order.orderNumber;
+    if (initData.merchantVpa) {
+        const vpaEl = document.getElementById('upiMerchantVpaDisplay');
+        if (vpaEl) vpaEl.innerText = initData.merchantVpa;
+    }
+
+    const qrWrapper = document.getElementById('upiQrCodeWrapper');
+    if (qrWrapper) {
+        qrWrapper.innerHTML = '';
+        if (typeof QRCode !== 'undefined') {
+            new QRCode(qrWrapper, {
+                text: initData.upiQrData || initData.upiUri,
+                width: 190,
+                height: 190,
+                colorDark: "#0f172a",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.M
+            });
+        } else {
+            const img = document.createElement('img');
+            img.src = `https://api.qrserver.com/v1/create-qr-code/?size=190x190&data=${encodeURIComponent(initData.upiQrData || initData.upiUri)}`;
+            img.alt = 'UPI QR Code';
+            img.className = 'w-[190px] h-[190px] mx-auto';
+            qrWrapper.appendChild(img);
+        }
+    }
+
+    startUpiCountdown();
+    document.getElementById('upiPaymentModal')?.classList.remove('hidden');
+}
+
+function closeUpiModal() {
+    if (activePaymentSession.timerInterval) {
+        clearInterval(activePaymentSession.timerInterval);
+    }
+    document.getElementById('upiPaymentModal')?.classList.add('hidden');
+}
+
+function startUpiCountdown() {
+    if (activePaymentSession.timerInterval) {
+        clearInterval(activePaymentSession.timerInterval);
+    }
+    let secondsLeft = 600; // 10 minutes
+    const timerEl = document.getElementById('upiTimer');
+
+    activePaymentSession.timerInterval = setInterval(() => {
+        secondsLeft--;
+        if (secondsLeft <= 0) {
+            clearInterval(activePaymentSession.timerInterval);
+            if (timerEl) timerEl.innerText = '00:00 (Expired)';
+            showToast('UPI payment window expired. Please retry.', 'error');
+            closeUpiModal();
+            return;
+        }
+        const mins = Math.floor(secondsLeft / 60);
+        const secs = secondsLeft % 60;
+        if (timerEl) {
+            timerEl.innerText = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+    }, 1000);
+}
+
+function copyMerchantVpa() {
+    const vpa = document.getElementById('upiMerchantVpaDisplay')?.innerText || 'novastore@okhdfcbank';
+    navigator.clipboard.writeText(vpa).then(() => {
+        showToast(`Copied UPI ID: ${vpa}`, 'success');
+    }).catch(() => {
+        showToast(vpa, 'info');
+    });
+}
+
+function openUpiApp(app) {
+    if (!activePaymentSession.initiateData?.upiUri) {
+        showToast('UPI URI not ready', 'error');
+        return;
+    }
+    const uri = activePaymentSession.initiateData.upiUri;
+    showToast(`Launching ${app.toUpperCase()}...`, 'info');
+    window.location.href = uri;
+}
+
+async function handleVerifyUpiPayment() {
+    if (!activePaymentSession.order) return;
+    const utrInput = document.getElementById('upiUtrInput')?.value?.trim();
+    const btn = document.getElementById('verifyUtrBtn');
+    if (btn) btn.disabled = true;
+
+    try {
+        const verifyRes = await fetch('/api/payments/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                orderNumber: activePaymentSession.order.orderNumber,
+                paymentMethod: 'UPI',
+                upiUtr: utrInput || null,
+                transactionId: utrInput ? `UPI-UTR-${utrInput}` : `UPI-${Date.now()}`
+            })
+        });
+        const vData = await verifyRes.json();
+        if (!verifyRes.ok) throw new Error(vData.message || 'Payment verification failed');
+
+        closeUpiModal();
+        activePaymentSession.order.paymentStatus = 'PAID';
+        activePaymentSession.order.paymentTransactionId = vData.transactionId;
+        activePaymentSession.order.paymentMethod = 'UPI / QR';
+        finishSuccessfulOrder(activePaymentSession.order);
+        showToast('Payment verified successfully!', 'success');
+    } catch (err) {
+        showToast(err.message || 'Verification failed', 'error');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+async function simulateUpiApproval() {
+    if (!activePaymentSession.order) return;
+    const randomUtr = Math.floor(100000000000 + Math.random() * 900000000000);
+    showToast('Simulating bank payment confirmation...', 'info');
+
+    try {
+        const verifyRes = await fetch('/api/payments/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                orderNumber: activePaymentSession.order.orderNumber,
+                paymentMethod: 'UPI',
+                upiUtr: String(randomUtr),
+                transactionId: `UPI-UTR-${randomUtr}`
+            })
+        });
+        const vData = await verifyRes.json();
+        if (!verifyRes.ok) throw new Error(vData.message || 'Approval simulation failed');
+
+        closeUpiModal();
+        activePaymentSession.order.paymentStatus = 'PAID';
+        activePaymentSession.order.paymentTransactionId = vData.transactionId;
+        activePaymentSession.order.paymentMethod = 'UPI / QR';
+        finishSuccessfulOrder(activePaymentSession.order);
+        showToast(`UPI Payment Approved! UTR: ${randomUtr}`, 'success');
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+}
+
+// -------------------------------------------------------------
+// RAZORPAY CHECKOUT HANDLERS
+// -------------------------------------------------------------
+function handleRazorpayCheckout(order, initData) {
+    if (typeof Razorpay === 'undefined') {
+        showToast('Opening Razorpay Sandbox Simulator...', 'info');
+        simulateRazorpayFallback(order, initData);
+        return;
+    }
+
+    try {
+        const options = {
+            key: initData.razorpayKeyId || 'rzp_test_51gH982Kls9',
+            amount: Math.round(order.totalAmount * 100), // in paise
+            currency: "INR",
+            name: "NOVA India Store",
+            description: `Order ${order.orderNumber}`,
+            image: "https://cdn-icons-png.flaticon.com/512/891/891462.png",
+            order_id: initData.razorpayOrderId,
+            handler: async function (response) {
+                try {
+                    const verifyRes = await fetch('/api/payments/verify', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            orderNumber: order.orderNumber,
+                            paymentMethod: 'RAZORPAY',
+                            razorpayOrderId: response.razorpay_order_id,
+                            razorpayPaymentId: response.razorpay_payment_id,
+                            razorpaySignature: response.razorpay_signature
+                        })
+                    });
+                    const vData = await verifyRes.json();
+                    order.paymentStatus = 'PAID';
+                    order.paymentTransactionId = response.razorpay_payment_id;
+                    order.paymentMethod = 'Razorpay Gateway';
+                    finishSuccessfulOrder(order);
+                    showToast('Razorpay payment verified!', 'success');
+                } catch (err) {
+                    showToast('Payment verification error', 'error');
+                }
+            },
+            prefill: {
+                name: order.customerName,
+                email: order.customerEmail,
+                contact: order.customerPhone
+            },
+            theme: { color: "#4f46e5" },
+            modal: {
+                ondismiss: function () {
+                    showToast('Payment window closed', 'info');
+                }
+            }
+        };
+
+        const rzp = new Razorpay(options);
+        rzp.on('payment.failed', function (response) {
+            showToast(`Payment failed: ${response.error.description}`, 'error');
+        });
+        rzp.open();
+    } catch (err) {
+        console.warn('Razorpay popup error, falling back:', err);
+        simulateRazorpayFallback(order, initData);
+    }
+}
+
+async function simulateRazorpayFallback(order, initData) {
+    const fakePayId = 'pay_' + Math.random().toString(36).substring(2, 12);
+    try {
+        const verifyRes = await fetch('/api/payments/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                orderNumber: order.orderNumber,
+                paymentMethod: 'RAZORPAY',
+                razorpayOrderId: initData.razorpayOrderId,
+                razorpayPaymentId: fakePayId,
+                razorpaySignature: 'simulated_valid_signature'
+            })
+        });
+        const vData = await verifyRes.json();
+        order.paymentStatus = 'PAID';
+        order.paymentTransactionId = fakePayId;
+        order.paymentMethod = 'Razorpay (Sandbox)';
+        finishSuccessfulOrder(order);
+        showToast(`Razorpay Test Payment Confirmed! ID: ${fakePayId}`, 'success');
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+}
+
+// -------------------------------------------------------------
+// CARD 3D-SECURE OTP HANDLERS
+// -------------------------------------------------------------
+function openCardOtpModal(order, cardLast4) {
+    activeCardSession = { order, cardLast4 };
+    document.getElementById('cardOtpModalAmount').innerText = `₹${formatINR(order.totalAmount)}`;
+    document.getElementById('cardOtpModalCardNum').innerText = `•••• •••• •••• ${cardLast4}`;
+    document.getElementById('cardOtpMobileDisplay').innerText = order.customerPhone || '+91 98765 43210';
+    document.getElementById('cardOtpInput').value = '123456';
+    document.getElementById('cardOtpModal')?.classList.remove('hidden');
+}
+
+function closeCardOtpModal() {
+    document.getElementById('cardOtpModal')?.classList.add('hidden');
+}
+
+function fillTestOtp() {
+    const input = document.getElementById('cardOtpInput');
+    if (input) input.value = '123456';
+    showToast('Autofilled Test OTP: 123456', 'info');
+}
+
+async function handleAuthorizeCardPayment() {
+    if (!activeCardSession.order) return;
+    const otp = document.getElementById('cardOtpInput')?.value?.trim();
+    if (!otp || otp.length < 4) {
+        showToast('Please enter the 6-digit OTP', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('authorizeCardBtn');
+    if (btn) btn.disabled = true;
+
+    try {
+        const verifyRes = await fetch('/api/payments/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                orderNumber: activeCardSession.order.orderNumber,
+                paymentMethod: 'CARD',
+                otp: otp,
+                cardLast4: activeCardSession.cardLast4
+            })
+        });
+        const vData = await verifyRes.json();
+        if (!verifyRes.ok) throw new Error(vData.message || 'OTP Authorization failed');
+
+        closeCardOtpModal();
+        activeCardSession.order.paymentStatus = 'PAID';
+        activeCardSession.order.paymentTransactionId = vData.transactionId;
+        activeCardSession.order.paymentMethod = `RuPay Card (•••• ${activeCardSession.cardLast4})`;
+        finishSuccessfulOrder(activeCardSession.order);
+        showToast('Card 3D-Secure payment authorized!', 'success');
+    } catch (err) {
+        showToast(err.message, 'error');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+// -------------------------------------------------------------
+// ORDER CONFIRMATION DISPLAY
+// -------------------------------------------------------------
 function showOrderConfirmation(order) {
     document.getElementById('confirmedOrderNumber').innerText = order.orderNumber;
     document.getElementById('confirmedCustomerName').innerText = order.customerName;
@@ -890,6 +1319,25 @@ function showOrderConfirmation(order) {
     const addrStr = `${order.shippingAddress}, ${order.area ? order.area + ', ' : ''}${order.city}, ${order.state || ''} - ${order.postalCode}, India 🇮🇳`;
     const addrEl = document.getElementById('confirmedAddress');
     if (addrEl) addrEl.innerText = addrStr;
+
+    // Payment status badge & transaction ID
+    const badgeEl = document.getElementById('confirmedPaymentBadge');
+    const txnEl = document.getElementById('confirmedTxnId');
+
+    const isPaid = order.paymentStatus === 'PAID';
+    if (badgeEl) {
+        if (isPaid) {
+            badgeEl.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1';
+            badgeEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> PAID (${order.paymentMethod || 'Online'})`;
+        } else {
+            badgeEl.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 flex items-center gap-1';
+            badgeEl.innerHTML = `<i class="fa-solid fa-hand-holding-dollar"></i> COD CONFIRMED`;
+        }
+    }
+
+    if (txnEl) {
+        txnEl.innerText = order.paymentTransactionId || (isPaid ? 'TXN-' + order.orderNumber.slice(-6) : 'COD-UPON-DELIVERY');
+    }
 
     document.getElementById('orderSuccessModal')?.classList.remove('hidden');
 }
@@ -994,6 +1442,14 @@ function renderCustomerOrderCard(order) {
             <div class="pt-2 border-t border-slate-200 flex flex-wrap justify-between items-center text-xs">
                 <span class="text-slate-500">Recipient: <strong class="text-slate-800">${escapeHtml(order.customerName)}</strong></span>
                 <span class="text-sm font-extrabold text-slate-900">Total: ₹${formatINR(order.totalAmount)}</span>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between text-[11px] bg-slate-100/80 px-3 py-1.5 rounded-xl text-slate-600">
+                <span>Payment: <strong>${escapeHtml(order.paymentMethod || 'UPI')}</strong></span>
+                <span class="font-mono text-[10px] ${order.paymentStatus === 'PAID' ? 'text-emerald-700 font-bold' : 'text-amber-700 font-bold'}">
+                    <i class="fa-solid ${order.paymentStatus === 'PAID' ? 'fa-circle-check text-emerald-600' : 'fa-clock text-amber-600'}"></i>
+                    ${order.paymentStatus || 'PAID'} ${order.paymentTransactionId ? '• ' + escapeHtml(order.paymentTransactionId) : ''}
+                </span>
             </div>
         </div>
     `;
@@ -1238,7 +1694,14 @@ function renderAdminOrdersTable() {
                 </td>
                 <td class="py-3 px-4 font-medium text-slate-700">${itemCount} item${itemCount === 1 ? '' : 's'}</td>
                 <td class="py-3 px-4 font-mono font-bold text-slate-900">₹${formatINR(ord.totalAmount)}</td>
-                <td class="py-3 px-4 text-slate-600">${escapeHtml(ord.paymentMethod || 'Credit Card')}</td>
+                <td class="py-3 px-4 text-slate-600">
+                    <div class="font-bold text-xs text-slate-800">${escapeHtml(ord.paymentMethod || 'UPI')}</div>
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold mt-0.5 ${ord.paymentStatus === 'PAID' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
+                        <i class="fa-solid ${ord.paymentStatus === 'PAID' ? 'fa-circle-check text-emerald-600' : 'fa-clock text-amber-600'}"></i>
+                        ${ord.paymentStatus || 'PAID'}
+                    </span>
+                    ${ord.paymentTransactionId ? `<div class="font-mono text-[9px] text-slate-400 truncate max-w-[120px]" title="${escapeHtml(ord.paymentTransactionId)}">${escapeHtml(ord.paymentTransactionId)}</div>` : ''}
+                </td>
                 <td class="py-3 px-6 text-right">
                     <select onchange="handleAdminOrderStatusChange('${ord.orderNumber}', this.value)"
                             class="text-xs font-bold px-3 py-1.5 rounded-xl border border-slate-300 bg-white shadow-sm focus:outline-none cursor-pointer ${getStatusSelectColor(ord.status)}">

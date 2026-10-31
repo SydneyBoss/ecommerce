@@ -45,6 +45,13 @@ public class Order {
 
     private String paymentMethod;
 
+    @Column(nullable = false)
+    private String paymentStatus = "PENDING";
+
+    private String paymentTransactionId;
+
+    private String paymentDetails;
+
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal subtotalAmount = BigDecimal.ZERO;
 
@@ -182,6 +189,30 @@ public class Order {
 
     public void setPaymentMethod(String paymentMethod) {
         this.paymentMethod = paymentMethod;
+    }
+
+    public String getPaymentStatus() {
+        return paymentStatus;
+    }
+
+    public void setPaymentStatus(String paymentStatus) {
+        this.paymentStatus = paymentStatus;
+    }
+
+    public String getPaymentTransactionId() {
+        return paymentTransactionId;
+    }
+
+    public void setPaymentTransactionId(String paymentTransactionId) {
+        this.paymentTransactionId = paymentTransactionId;
+    }
+
+    public String getPaymentDetails() {
+        return paymentDetails;
+    }
+
+    public void setPaymentDetails(String paymentDetails) {
+        this.paymentDetails = paymentDetails;
     }
 
     public BigDecimal getSubtotalAmount() {

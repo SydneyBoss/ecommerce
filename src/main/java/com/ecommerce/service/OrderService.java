@@ -55,7 +55,16 @@ public class OrderService {
         order.setCountry(request.getCountry() != null && !request.getCountry().isBlank() ? request.getCountry() : "India");
         order.setLatitude(request.getLatitude());
         order.setLongitude(request.getLongitude());
-        order.setPaymentMethod(request.getPaymentMethod() != null ? request.getPaymentMethod() : "Credit Card");
+        order.setPaymentMethod(request.getPaymentMethod() != null ? request.getPaymentMethod() : "UPI");
+        if (request.getPaymentStatus() != null && !request.getPaymentStatus().isBlank()) {
+            order.setPaymentStatus(request.getPaymentStatus());
+        } else if ("Cash On Delivery".equalsIgnoreCase(order.getPaymentMethod()) || "COD".equalsIgnoreCase(order.getPaymentMethod())) {
+            order.setPaymentStatus("COD_PENDING");
+        } else {
+            order.setPaymentStatus("PAID");
+        }
+        order.setPaymentTransactionId(request.getPaymentTransactionId());
+        order.setPaymentDetails(request.getPaymentDetails());
         order.setStatus(OrderStatus.CONFIRMED);
         order.setCreatedAt(LocalDateTime.now());
 
@@ -123,6 +132,22 @@ public class OrderService {
         Order order = orderRepository.findByOrderNumber(orderNumber)
                 .orElseThrow(() -> new IllegalArgumentException("Order not found with number: " + orderNumber));
         order.setStatus(status);
+        Order updated = orderRepository.save(order);
+        return new OrderResponse(updated);
+    }
+
+    public OrderResponse updatePayment(String orderNumber, String status, String transactionId, String paymentDetails) {
+        Order order = orderRepository.findByOrderNumber(orderNumber)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found with number: " + orderNumber));
+        if (status != null && !status.isBlank()) {
+            order.setPaymentStatus(status);
+        }
+        if (transactionId != null && !transactionId.isBlank()) {
+            order.setPaymentTransactionId(transactionId);
+        }
+        if (paymentDetails != null && !paymentDetails.isBlank()) {
+            order.setPaymentDetails(paymentDetails);
+        }
         Order updated = orderRepository.save(order);
         return new OrderResponse(updated);
     }

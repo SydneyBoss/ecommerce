@@ -28,7 +28,10 @@ public class OrderRequest {
     private Double latitude;
     private Double longitude;
 
-    private String paymentMethod = "Credit Card";
+    private String paymentMethod = "UPI";
+    private String paymentStatus = "PENDING";
+    private String paymentTransactionId;
+    private String paymentDetails;
 
     @NotEmpty(message = "Cart cannot be empty")
     @Valid
@@ -130,6 +133,30 @@ public class OrderRequest {
 
     public void setPaymentMethod(String paymentMethod) {
         this.paymentMethod = paymentMethod;
+    }
+
+    public String getPaymentStatus() {
+        return paymentStatus;
+    }
+
+    public void setPaymentStatus(String paymentStatus) {
+        this.paymentStatus = paymentStatus;
+    }
+
+    public String getPaymentTransactionId() {
+        return paymentTransactionId;
+    }
+
+    public void setPaymentTransactionId(String paymentTransactionId) {
+        this.paymentTransactionId = paymentTransactionId;
+    }
+
+    public String getPaymentDetails() {
+        return paymentDetails;
+    }
+
+    public void setPaymentDetails(String paymentDetails) {
+        this.paymentDetails = paymentDetails;
     }
 
     public List<OrderItemRequest> getItems() {

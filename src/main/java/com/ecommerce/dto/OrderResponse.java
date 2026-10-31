@@ -25,6 +25,9 @@ public class OrderResponse {
     private Double latitude;
     private Double longitude;
     private String paymentMethod;
+    private String paymentStatus;
+    private String paymentTransactionId;
+    private String paymentDetails;
     private BigDecimal subtotalAmount;
     private BigDecimal shippingFee;
     private BigDecimal taxAmount;
@@ -73,6 +76,9 @@ public class OrderResponse {
         this.latitude = order.getLatitude();
         this.longitude = order.getLongitude();
         this.paymentMethod = order.getPaymentMethod();
+        this.paymentStatus = order.getPaymentStatus();
+        this.paymentTransactionId = order.getPaymentTransactionId();
+        this.paymentDetails = order.getPaymentDetails();
         this.subtotalAmount = order.getSubtotalAmount();
         this.shippingFee = order.getShippingFee();
         this.taxAmount = order.getTaxAmount();
@@ -100,6 +106,9 @@ public class OrderResponse {
     public Double getLatitude() { return latitude; }
     public Double getLongitude() { return longitude; }
     public String getPaymentMethod() { return paymentMethod; }
+    public String getPaymentStatus() { return paymentStatus; }
+    public String getPaymentTransactionId() { return paymentTransactionId; }
+    public String getPaymentDetails() { return paymentDetails; }
     public BigDecimal getSubtotalAmount() { return subtotalAmount; }
     public BigDecimal getShippingFee() { return shippingFee; }
     public BigDecimal getTaxAmount() { return taxAmount; }
