@@ -13,6 +13,7 @@ public class PaymentInitiateRequest {
     private String customerName;
     private String customerEmail;
     private String customerPhone;
+    private String merchantVpa;
 
     public PaymentInitiateRequest() {}
 
@@ -33,4 +34,7 @@ public class PaymentInitiateRequest {
 
     public String getCustomerPhone() { return customerPhone; }
     public void setCustomerPhone(String customerPhone) { this.customerPhone = customerPhone; }
+
+    public String getMerchantVpa() { return merchantVpa; }
+    public void setMerchantVpa(String merchantVpa) { this.merchantVpa = merchantVpa; }
 }

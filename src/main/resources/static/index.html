@@ -793,14 +793,14 @@
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-center gap-2">
                                         <span class="px-2 py-0.5 rounded bg-blue-600 text-white font-extrabold text-[10px]">RAZORPAY</span>
-                                        <span class="text-xs font-bold text-slate-800">Payment Gateway Popup</span>
+                                        <span class="text-xs font-bold text-slate-800">Sandbox Testing Suite</span>
                                     </div>
-                                    <span class="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold">Free Sandbox Mode</span>
+                                    <span class="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">Test Mode Active</span>
                                 </div>
-                                <p class="text-xs text-slate-600">Clicking Proceed will open Razorpay's official checkout modal. Supports test NetBanking (SBI, HDFC, ICICI), Cards, and Mock Wallets without actual debits.</p>
+                                <p class="text-xs text-slate-600">Simulate official Razorpay payments using test UPI (<code>success@razorpay</code>), test RuPay cards, and simulated NetBanking.</p>
                                 <div class="flex items-center gap-2 text-[11px] text-slate-500 bg-white p-2.5 rounded-xl border border-slate-200">
                                     <i class="fa-solid fa-circle-check text-emerald-600"></i>
-                                    <span>HMAC-SHA256 signature verification enabled on backend API.</span>
+                                    <span>Built-in interactive sandbox testing with HMAC-SHA256 signature verification.</span>
                                 </div>
                             </div>
 
@@ -839,16 +839,19 @@
 
                             <!-- COD Fields -->
                             <div id="codFields" class="hidden p-4 rounded-2xl bg-amber-50/70 border border-amber-200 space-y-2.5 mb-3">
-                                <div class="flex items-center gap-2">
-                                    <i class="fa-solid fa-hand-holding-dollar text-amber-700"></i>
-                                    <span class="text-xs font-bold text-amber-900">Cash on Delivery (COD)</span>
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-2">
+                                        <i class="fa-solid fa-hand-holding-dollar text-amber-700 text-base"></i>
+                                        <span class="text-xs font-bold text-amber-900">Cash on Delivery (COD)</span>
+                                    </div>
+                                    <span class="text-[10px] bg-amber-200 text-amber-900 font-extrabold px-2 py-0.5 rounded-full">
+                                        <i class="fa-solid fa-shield-halved"></i> Real-Time OTP Verification
+                                    </span>
                                 </div>
-                                <p class="text-xs text-amber-800">You can pay with cash or ask the delivery executive for their UPI QR code upon arrival at your doorstep.</p>
-                                <div class="flex items-center gap-2 pt-1">
-                                    <span class="text-[11px] font-semibold text-slate-600">Anti-Spam Security Code:</span>
-                                    <span id="codCaptchaDisplay" class="font-mono font-extrabold bg-white px-2.5 py-1 rounded-lg border border-amber-300 text-amber-900 tracking-wider">7492</span>
-                                    <input type="text" id="codCaptchaInput" value="7492" maxlength="4" placeholder="Code"
-                                           class="w-20 px-2 py-1 rounded-lg border border-slate-300 text-xs font-mono text-center focus:border-brand-500 focus:outline-none">
+                                <p class="text-xs text-amber-800">You can pay with cash or ask the delivery agent for their UPI QR code upon arrival at your doorstep.</p>
+                                <div class="bg-white/80 p-2.5 rounded-xl border border-amber-200/80 flex items-center gap-2 text-[11px] text-amber-950">
+                                    <i class="fa-solid fa-comment-sms text-amber-600 text-sm"></i>
+                                    <span>A 6-digit real-time SMS OTP will be generated to verify your mobile number upon clicking proceed.</span>
                                 </div>
                             </div>
                         </div>
@@ -911,14 +914,23 @@
                         </div>
                     </div>
 
-                    <!-- Merchant VPA Details -->
-                    <div class="flex items-center justify-between text-xs px-3 py-2 bg-indigo-50/60 rounded-xl border border-indigo-100 mb-3 text-slate-700">
-                        <span class="text-slate-500 text-[11px]">UPI ID:</span>
-                        <div class="flex items-center gap-1 font-mono font-bold text-indigo-950">
-                            <span id="upiMerchantVpaDisplay">novastore@okhdfcbank</span>
-                            <button onclick="copyMerchantVpa()" class="text-brand-600 hover:text-brand-700 ml-1" title="Copy UPI ID">
-                                <i class="fa-regular fa-copy"></i>
+                    <!-- Receiver UPI ID & Live QR update -->
+                    <div class="mb-3 p-3 bg-indigo-50/70 rounded-2xl border border-indigo-100 text-left">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="text-[11px] font-bold text-indigo-950 flex items-center gap-1">
+                                <i class="fa-solid fa-qrcode text-indigo-600"></i> Receiver UPI ID (VPA):
+                            </label>
+                            <span class="text-[10px] text-indigo-600 font-semibold">Updates QR Instantly</span>
+                        </div>
+                        <div class="flex gap-2 mb-1.5">
+                            <input type="text" id="upiReceiverVpaInput" value="novastore@okhdfcbank" placeholder="e.g. yourname@okhdfcbank or 9876543210@paytm"
+                                   class="flex-1 px-3 py-1.5 text-xs font-mono rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-brand-500">
+                            <button onclick="updateReceiverVpaAndQr()" class="px-3 py-1.5 bg-indigo-600 text-white font-bold text-xs rounded-xl hover:bg-indigo-700 transition">
+                                Apply
                             </button>
+                        </div>
+                        <div class="text-[10px] text-slate-500 bg-white p-2 rounded-xl border border-indigo-100/80 leading-relaxed">
+                            💡 <strong>Why do phone scanners say "Unable to scan"?</strong> Real UPI apps (GPay, PhonePe, Paytm) check the Payee against NPCI live. Enter <strong>your own personal UPI ID</strong> above to scan and see your real name & exact amount, or tap <strong>1-Click Test Approval</strong> below!
                         </div>
                     </div>
 
@@ -1026,6 +1038,195 @@
                     <div class="flex justify-between items-center text-xs text-slate-500 pt-1">
                         <button onclick="closeCardOtpModal()" class="hover:text-slate-700 font-semibold">Cancel Transaction</button>
                         <button onclick="showToast('New test OTP sent: 123456', 'info')" class="text-brand-600 hover:underline font-semibold">Resend OTP</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 📦 Cash on Delivery (COD) Real-Time OTP Verification Modal -->
+    <div id="codOtpModal" class="fixed inset-0 z-50 overflow-y-auto hidden" role="dialog" aria-modal="true">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="closeCodOtpModal()"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+            <div class="inline-block align-bottom bg-white rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full border border-slate-100">
+                <!-- Header -->
+                <div class="bg-gradient-to-r from-amber-600 to-amber-700 text-white p-5 flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-lg">
+                            <i class="fa-solid fa-mobile-screen-button"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-bold">COD Mobile Verification</h3>
+                            <span class="text-[10px] text-amber-100">Anti-Spam Real-Time SMS OTP</span>
+                        </div>
+                    </div>
+                    <span class="text-xs bg-white/20 text-white font-bold px-2 py-0.5 rounded border border-white/30">Step 2/2</span>
+                </div>
+
+                <div class="p-6 space-y-4">
+                    <!-- Live Incoming SMS Simulator Banner -->
+                    <div id="codSmsBanner" class="p-3 bg-amber-50 border border-amber-200 rounded-2xl flex flex-col gap-1.5 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[11px] font-bold text-amber-900 flex items-center gap-1.5">
+                                <i class="fa-solid fa-comment-sms text-amber-600"></i>
+                                <span>Incoming SMS Notification:</span>
+                            </span>
+                            <span class="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.2 rounded">Delivered</span>
+                        </div>
+                        <div class="text-xs text-slate-700 font-mono bg-white p-2 rounded-xl border border-amber-100 flex items-center justify-between">
+                            <span>NOVA OTP: <strong id="codDemoOtpDisplay" class="text-amber-800 text-sm font-extrabold tracking-widest">------</strong></span>
+                            <button onclick="autoFillCodOtp()" class="px-2 py-1 bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold rounded-lg transition shadow-sm">
+                                Auto-Fill
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs flex justify-between items-center">
+                        <div>
+                            <span class="text-slate-500 block text-[10px] uppercase font-bold">Payable at Doorstep</span>
+                            <span id="codOtpAmountDisplay" class="text-base font-extrabold text-slate-900">₹0.00</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-slate-500 block text-[10px] uppercase font-bold">Sending Code To</span>
+                            <span id="codOtpMobileDisplay" class="font-mono font-bold text-slate-800">+91 ••••• ••9012</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-800 mb-1">Enter 6-Digit Verification Code</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="codOtpInput" placeholder="••••••" maxlength="6"
+                                   class="flex-1 px-4 py-2.5 rounded-xl border border-slate-300 text-lg font-mono tracking-widest text-center font-extrabold focus:border-amber-600 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <button onclick="handleVerifyCodOtp()" id="verifyCodOtpBtn" class="w-full py-3.5 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-sm font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-amber-600/25">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <span>Verify OTP & Confirm Order</span>
+                    </button>
+
+                    <div class="flex justify-between items-center text-xs text-slate-500 pt-1">
+                        <button onclick="closeCodOtpModal()" class="hover:text-slate-700 font-semibold">Change Payment Method</button>
+                        <button onclick="resendCodOtp()" id="resendCodBtn" class="text-amber-700 hover:underline font-semibold flex items-center gap-1">
+                            <i class="fa-solid fa-rotate-right"></i> Resend OTP
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ⚡ Razorpay Payment Gateway Testing Sandbox Modal -->
+    <div id="razorpayModal" class="fixed inset-0 z-50 overflow-y-auto hidden" role="dialog" aria-modal="true">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="closeRazorpayModal()"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+            <div class="inline-block align-bottom bg-white rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full border border-slate-200">
+                <!-- Razorpay Header -->
+                <div class="bg-[#0c2340] text-white p-5 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="px-2 py-1 rounded bg-[#3395ff] text-white font-extrabold text-xs tracking-wider">
+                            Razorpay
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-bold">Standard Checkout</h3>
+                            <span class="text-[10px] text-blue-200">Test Mode (Mock Sandbox)</span>
+                        </div>
+                    </div>
+                    <span class="text-xs bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded border border-emerald-400/30">Sandboxed</span>
+                </div>
+
+                <div class="p-6 space-y-4">
+                    <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 text-xs flex justify-between items-center">
+                        <div>
+                            <span class="text-slate-500 text-[10px] uppercase font-bold block">Amount to Authorize</span>
+                            <span id="rzpModalAmount" class="text-xl font-extrabold text-slate-900">₹0.00</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-slate-500 text-[10px] uppercase font-bold block">Order Reference</span>
+                            <span id="rzpModalOrderNumber" class="font-mono font-bold text-brand-600">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Payment Rail Tabs -->
+                    <div>
+                        <div class="flex border-b border-slate-200 text-xs font-bold text-slate-600 mb-3">
+                            <button onclick="switchRzpTab('upi')" id="rzpTabUpi" class="flex-1 pb-2 border-b-2 border-brand-600 text-brand-600">
+                                <i class="fa-solid fa-mobile-screen mr-1"></i> Test UPI
+                            </button>
+                            <button onclick="switchRzpTab('card')" id="rzpTabCard" class="flex-1 pb-2 border-b-2 border-transparent hover:text-slate-800">
+                                <i class="fa-regular fa-credit-card mr-1"></i> Test Card
+                            </button>
+                            <button onclick="switchRzpTab('netbanking')" id="rzpTabNb" class="flex-1 pb-2 border-b-2 border-transparent hover:text-slate-800">
+                                <i class="fa-solid fa-building-columns mr-1"></i> NetBanking
+                            </button>
+                        </div>
+
+                        <!-- Tab 1: Test UPI -->
+                        <div id="rzpPaneUpi" class="space-y-3">
+                            <label class="block text-xs font-bold text-slate-700">Test UPI ID</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="rzpTestVpa" value="success@razorpay" class="flex-1 px-3 py-2 rounded-xl border border-slate-300 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-brand-500">
+                                <button onclick="fillRzpVpa('success@razorpay')" class="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold rounded-lg hover:bg-emerald-100 transition">
+                                    Success
+                                </button>
+                                <button onclick="fillRzpVpa('failure@razorpay')" class="px-2.5 py-1 bg-red-50 text-red-700 border border-red-200 text-[11px] font-bold rounded-lg hover:bg-red-100 transition">
+                                    Fail
+                                </button>
+                            </div>
+                            <p class="text-[11px] text-slate-400">Use <code>success@razorpay</code> to simulate instant payment approval.</p>
+                        </div>
+
+                        <!-- Tab 2: Test Card -->
+                        <div id="rzpPaneCard" class="hidden space-y-3">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Razorpay Test RuPay / Visa Card</label>
+                                <input type="text" id="rzpCardNumber" value="5089 9200 0000 0000" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-mono font-bold focus:outline-none focus:border-brand-500">
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <input type="text" value="12/30" placeholder="MM/YY" class="px-3 py-2 rounded-xl border border-slate-300 text-xs font-mono text-center">
+                                <input type="password" value="123" placeholder="CVV" class="px-3 py-2 rounded-xl border border-slate-300 text-xs font-mono text-center">
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="fillRzpCard('5089 9200 0000 0000')" class="flex-1 py-1 px-2 bg-slate-100 text-slate-700 text-[11px] font-bold rounded-lg hover:bg-slate-200 transition">
+                                    RuPay Test Card
+                                </button>
+                                <button onclick="fillRzpCard('4111 1111 1111 1111')" class="flex-1 py-1 px-2 bg-slate-100 text-slate-700 text-[11px] font-bold rounded-lg hover:bg-slate-200 transition">
+                                    Visa Test Card
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Tab 3: NetBanking -->
+                        <div id="rzpPaneNb" class="hidden space-y-2">
+                            <label class="block text-xs font-bold text-slate-700">Select Test Bank</label>
+                            <div class="grid grid-cols-2 gap-2 text-xs">
+                                <label class="p-2 border border-brand-500 bg-brand-50 rounded-xl flex items-center gap-2 cursor-pointer font-bold text-slate-800">
+                                    <input type="radio" name="testBank" value="SBI" checked> SBI Bank
+                                </label>
+                                <label class="p-2 border border-slate-200 hover:border-slate-300 rounded-xl flex items-center gap-2 cursor-pointer font-bold text-slate-800">
+                                    <input type="radio" name="testBank" value="HDFC"> HDFC Bank
+                                </label>
+                                <label class="p-2 border border-slate-200 hover:border-slate-300 rounded-xl flex items-center gap-2 cursor-pointer font-bold text-slate-800">
+                                    <input type="radio" name="testBank" value="ICICI"> ICICI Bank
+                                </label>
+                                <label class="p-2 border border-slate-200 hover:border-slate-300 rounded-xl flex items-center gap-2 cursor-pointer font-bold text-slate-800">
+                                    <input type="radio" name="testBank" value="AXIS"> Axis Bank
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="executeRzpSandboxPayment()" id="rzpSubmitBtn" class="w-full py-3.5 px-4 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-brand-500/25">
+                        <i class="fa-solid fa-bolt"></i>
+                        <span>Simulate Razorpay Payment</span>
+                    </button>
+
+                    <div class="text-center pt-1">
+                        <button onclick="closeRazorpayModal()" class="text-xs text-slate-400 hover:text-slate-600 font-semibold">
+                            Cancel & Return
+                        </button>
                     </div>
                 </div>
             </div>

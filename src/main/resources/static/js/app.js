@@ -185,6 +185,8 @@ function setupEventListeners() {
             closeSuccessModal();
             closeUpiModal();
             closeCardOtpModal();
+            closeCodOtpModal();
+            closeRazorpayModal();
             closeAddProductModal();
             closeQuickEditModal();
             closeAddCategoryModal();
@@ -959,18 +961,18 @@ async function handlePlaceOrder(event) {
 
         // Check which payment flow to trigger
         if (selectedMethod === 'COD') {
-            orderData.paymentStatus = 'COD_PENDING';
-            orderData.paymentTransactionId = 'COD-' + orderData.orderNumber;
-            finishSuccessfulOrder(orderData);
-            showToast('Order confirmed via Cash on Delivery!', 'success');
+            closeCheckoutModal();
+            openCodOtpModal(orderData);
         } else if (selectedMethod === 'UPI') {
+            const vpaPref = document.getElementById('custUpiId')?.value?.trim();
             const initRes = await fetch('/api/payments/initiate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     orderNumber: orderData.orderNumber,
                     paymentMethod: 'UPI',
-                    amount: orderData.totalAmount
+                    amount: orderData.totalAmount,
+                    merchantVpa: vpaPref && vpaPref.includes('@') ? vpaPref : 'novastore@okhdfcbank'
                 })
             });
             const initData = await initRes.json();
@@ -987,6 +989,7 @@ async function handlePlaceOrder(event) {
                 })
             });
             const initData = await initRes.json();
+            closeCheckoutModal();
             handleRazorpayCheckout(orderData, initData);
         } else if (selectedMethod === 'CARD') {
             closeCheckoutModal();
@@ -1014,34 +1017,55 @@ function openUpiModal(order, initData) {
 
     document.getElementById('upiModalAmount').innerText = `₹${formatINR(order.totalAmount)}`;
     document.getElementById('upiModalOrderNumber').innerText = order.orderNumber;
-    if (initData.merchantVpa) {
-        const vpaEl = document.getElementById('upiMerchantVpaDisplay');
-        if (vpaEl) vpaEl.innerText = initData.merchantVpa;
-    }
+    const vpaInput = document.getElementById('upiReceiverVpaInput');
+    if (vpaInput) vpaInput.value = initData.merchantVpa || 'novastore@okhdfcbank';
 
-    const qrWrapper = document.getElementById('upiQrCodeWrapper');
-    if (qrWrapper) {
-        qrWrapper.innerHTML = '';
-        if (typeof QRCode !== 'undefined') {
-            new QRCode(qrWrapper, {
-                text: initData.upiQrData || initData.upiUri,
-                width: 190,
-                height: 190,
-                colorDark: "#0f172a",
-                colorLight: "#ffffff",
-                correctLevel: QRCode.CorrectLevel.M
-            });
-        } else {
-            const img = document.createElement('img');
-            img.src = `https://api.qrserver.com/v1/create-qr-code/?size=190x190&data=${encodeURIComponent(initData.upiQrData || initData.upiUri)}`;
-            img.alt = 'UPI QR Code';
-            img.className = 'w-[190px] h-[190px] mx-auto';
-            qrWrapper.appendChild(img);
-        }
-    }
-
+    renderUpiQrCode(initData.upiQrData || initData.upiUri);
     startUpiCountdown();
     document.getElementById('upiPaymentModal')?.classList.remove('hidden');
+}
+
+function renderUpiQrCode(text) {
+    const qrWrapper = document.getElementById('upiQrCodeWrapper');
+    if (!qrWrapper) return;
+    qrWrapper.innerHTML = '';
+    if (typeof QRCode !== 'undefined') {
+        new QRCode(qrWrapper, {
+            text: text,
+            width: 200,
+            height: 200,
+            colorDark: "#020617",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.M
+        });
+    } else {
+        const img = document.createElement('img');
+        img.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(text)}`;
+        img.alt = 'UPI QR Code';
+        img.className = 'w-[200px] h-[200px] mx-auto';
+        qrWrapper.appendChild(img);
+    }
+}
+
+function updateReceiverVpaAndQr() {
+    const newVpa = document.getElementById('upiReceiverVpaInput')?.value?.trim();
+    if (!newVpa || !newVpa.includes('@')) {
+        showToast('Please enter a valid UPI ID (e.g. name@okaxis or 9876543210@paytm)', 'error');
+        return;
+    }
+    if (!activePaymentSession.order) return;
+
+    const cleanName = encodeURIComponent('NOVA Store India');
+    const cleanNote = encodeURIComponent(`Order ${activePaymentSession.order.orderNumber}`);
+    const amount = Number(activePaymentSession.order.totalAmount).toFixed(2);
+    const newUpiUri = `upi://pay?pa=${newVpa}&pn=${cleanName}&am=${amount}&cu=INR&tr=${activePaymentSession.order.orderNumber}&tn=${cleanNote}&mode=02`;
+
+    activePaymentSession.initiateData.upiUri = newUpiUri;
+    activePaymentSession.initiateData.upiQrData = newUpiUri;
+    activePaymentSession.initiateData.merchantVpa = newVpa;
+
+    renderUpiQrCode(newUpiUri);
+    showToast(`QR Code refreshed for UPI ID: ${newVpa}`, 'success');
 }
 
 function closeUpiModal() {
@@ -1076,7 +1100,7 @@ function startUpiCountdown() {
 }
 
 function copyMerchantVpa() {
-    const vpa = document.getElementById('upiMerchantVpaDisplay')?.innerText || 'novastore@okhdfcbank';
+    const vpa = document.getElementById('upiReceiverVpaInput')?.value || 'novastore@okhdfcbank';
     navigator.clipboard.writeText(vpa).then(() => {
         showToast(`Copied UPI ID: ${vpa}`, 'success');
     }).catch(() => {
@@ -1158,93 +1182,226 @@ async function simulateUpiApproval() {
 }
 
 // -------------------------------------------------------------
-// RAZORPAY CHECKOUT HANDLERS
+// REAL-TIME COD OTP VERIFICATION HANDLERS
 // -------------------------------------------------------------
-function handleRazorpayCheckout(order, initData) {
-    if (typeof Razorpay === 'undefined') {
-        showToast('Opening Razorpay Sandbox Simulator...', 'info');
-        simulateRazorpayFallback(order, initData);
-        return;
-    }
+let activeCodSession = {
+    order: null,
+    otp: null,
+    countdown: 60,
+    timerInterval: null
+};
 
+async function openCodOtpModal(order) {
+    activeCodSession.order = order;
+    document.getElementById('codOtpAmountDisplay').innerText = `₹${formatINR(order.totalAmount)}`;
+    document.getElementById('codOtpMobileDisplay').innerText = order.customerPhone || '+91 98765 43210';
+    document.getElementById('codOtpInput').value = '';
+
+    document.getElementById('codOtpModal')?.classList.remove('hidden');
+
+    // Trigger real-time OTP dispatch via backend
+    await dispatchCodOtp();
+}
+
+function closeCodOtpModal() {
+    if (activeCodSession.timerInterval) clearInterval(activeCodSession.timerInterval);
+    document.getElementById('codOtpModal')?.classList.add('hidden');
+}
+
+async function dispatchCodOtp() {
+    if (!activeCodSession.order) return;
     try {
-        const options = {
-            key: initData.razorpayKeyId || 'rzp_test_51gH982Kls9',
-            amount: Math.round(order.totalAmount * 100), // in paise
-            currency: "INR",
-            name: "NOVA India Store",
-            description: `Order ${order.orderNumber}`,
-            image: "https://cdn-icons-png.flaticon.com/512/891/891462.png",
-            order_id: initData.razorpayOrderId,
-            handler: async function (response) {
-                try {
-                    const verifyRes = await fetch('/api/payments/verify', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            orderNumber: order.orderNumber,
-                            paymentMethod: 'RAZORPAY',
-                            razorpayOrderId: response.razorpay_order_id,
-                            razorpayPaymentId: response.razorpay_payment_id,
-                            razorpaySignature: response.razorpay_signature
-                        })
-                    });
-                    const vData = await verifyRes.json();
-                    order.paymentStatus = 'PAID';
-                    order.paymentTransactionId = response.razorpay_payment_id;
-                    order.paymentMethod = 'Razorpay Gateway';
-                    finishSuccessfulOrder(order);
-                    showToast('Razorpay payment verified!', 'success');
-                } catch (err) {
-                    showToast('Payment verification error', 'error');
-                }
-            },
-            prefill: {
-                name: order.customerName,
-                email: order.customerEmail,
-                contact: order.customerPhone
-            },
-            theme: { color: "#4f46e5" },
-            modal: {
-                ondismiss: function () {
-                    showToast('Payment window closed', 'info');
-                }
-            }
-        };
-
-        const rzp = new Razorpay(options);
-        rzp.on('payment.failed', function (response) {
-            showToast(`Payment failed: ${response.error.description}`, 'error');
+        const res = await fetch('/api/otp/send-cod-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                phone: activeCodSession.order.customerPhone,
+                orderNumber: activeCodSession.order.orderNumber
+            })
         });
-        rzp.open();
+        const data = await res.json();
+        if (data.demoOtp) {
+            activeCodSession.otp = data.demoOtp;
+            document.getElementById('codDemoOtpDisplay').innerText = data.demoOtp;
+            showToast(`📲 SMS OTP to ${data.maskedPhone || 'your mobile'}: ${data.demoOtp}`, 'info');
+        }
+        startCodTimer();
     } catch (err) {
-        console.warn('Razorpay popup error, falling back:', err);
-        simulateRazorpayFallback(order, initData);
+        showToast('Failed to dispatch OTP SMS', 'error');
     }
 }
 
-async function simulateRazorpayFallback(order, initData) {
-    const fakePayId = 'pay_' + Math.random().toString(36).substring(2, 12);
+function autoFillCodOtp() {
+    if (activeCodSession.otp) {
+        document.getElementById('codOtpInput').value = activeCodSession.otp;
+        showToast(`Auto-filled OTP: ${activeCodSession.otp}`, 'success');
+    }
+}
+
+function startCodTimer() {
+    if (activeCodSession.timerInterval) clearInterval(activeCodSession.timerInterval);
+    activeCodSession.countdown = 60;
+    const btn = document.getElementById('resendCodBtn');
+    if (btn) btn.disabled = true;
+
+    activeCodSession.timerInterval = setInterval(() => {
+        activeCodSession.countdown--;
+        if (btn) btn.innerHTML = `<i class="fa-solid fa-clock mr-1"></i> Resend in ${activeCodSession.countdown}s`;
+        if (activeCodSession.countdown <= 0) {
+            clearInterval(activeCodSession.timerInterval);
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-rotate-right mr-1"></i> Resend OTP`;
+            }
+        }
+    }, 1000);
+}
+
+async function resendCodOtp() {
+    showToast('Sending fresh OTP code...', 'info');
+    await dispatchCodOtp();
+}
+
+async function handleVerifyCodOtp() {
+    if (!activeCodSession.order) return;
+    const inputOtp = document.getElementById('codOtpInput')?.value?.trim();
+    if (!inputOtp || inputOtp.length !== 6) {
+        showToast('Please enter the 6-digit OTP', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('verifyCodOtpBtn');
+    if (btn) btn.disabled = true;
+
+    try {
+        const res = await fetch('/api/otp/verify-cod-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                phone: activeCodSession.order.customerPhone,
+                orderNumber: activeCodSession.order.orderNumber,
+                otp: inputOtp
+            })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'OTP verification failed');
+
+        closeCodOtpModal();
+        activeCodSession.order.paymentStatus = 'COD_VERIFIED';
+        activeCodSession.order.paymentTransactionId = `COD-OTP-${inputOtp}`;
+        activeCodSession.order.paymentMethod = 'Cash on Delivery (OTP Verified)';
+        finishSuccessfulOrder(activeCodSession.order);
+        showToast('Cash on Delivery verified successfully via OTP!', 'success');
+    } catch (err) {
+        showToast(err.message || 'Incorrect OTP code', 'error');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+// -------------------------------------------------------------
+// RAZORPAY SANDBOX TESTING SUITE HANDLERS
+// -------------------------------------------------------------
+let activeRzpSession = {
+    order: null,
+    initData: null
+};
+
+function handleRazorpayCheckout(order, initData) {
+    activeRzpSession.order = order;
+    activeRzpSession.initData = initData;
+
+    document.getElementById('rzpModalAmount').innerText = `₹${formatINR(order.totalAmount)}`;
+    document.getElementById('rzpModalOrderNumber').innerText = order.orderNumber;
+    switchRzpTab('upi');
+    document.getElementById('razorpayModal')?.classList.remove('hidden');
+}
+
+function closeRazorpayModal() {
+    document.getElementById('razorpayModal')?.classList.add('hidden');
+}
+
+function switchRzpTab(tab) {
+    const tabUpi = document.getElementById('rzpTabUpi');
+    const tabCard = document.getElementById('rzpTabCard');
+    const tabNb = document.getElementById('rzpTabNb');
+
+    const paneUpi = document.getElementById('rzpPaneUpi');
+    const paneCard = document.getElementById('rzpPaneCard');
+    const paneNb = document.getElementById('rzpPaneNb');
+
+    [tabUpi, tabCard, tabNb].forEach(t => {
+        t?.classList.remove('border-brand-600', 'text-brand-600');
+        t?.classList.add('border-transparent');
+    });
+    [paneUpi, paneCard, paneNb].forEach(p => p?.classList.add('hidden'));
+
+    if (tab === 'upi') {
+        tabUpi?.classList.add('border-brand-600', 'text-brand-600');
+        tabUpi?.classList.remove('border-transparent');
+        paneUpi?.classList.remove('hidden');
+    } else if (tab === 'card') {
+        tabCard?.classList.add('border-brand-600', 'text-brand-600');
+        tabCard?.classList.remove('border-transparent');
+        paneCard?.classList.remove('hidden');
+    } else {
+        tabNb?.classList.add('border-brand-600', 'text-brand-600');
+        tabNb?.classList.remove('border-transparent');
+        paneNb?.classList.remove('hidden');
+    }
+}
+
+function fillRzpVpa(vpa) {
+    const input = document.getElementById('rzpTestVpa');
+    if (input) input.value = vpa;
+    showToast(`Selected: ${vpa}`, 'info');
+}
+
+function fillRzpCard(card) {
+    const input = document.getElementById('rzpCardNumber');
+    if (input) input.value = card;
+    showToast(`Selected test card: ${card}`, 'info');
+}
+
+async function executeRzpSandboxPayment() {
+    if (!activeRzpSession.order) return;
+    const vpa = document.getElementById('rzpTestVpa')?.value?.trim();
+
+    if (vpa === 'failure@razorpay') {
+        showToast('Simulated Razorpay error: Payment failed by customer bank', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('rzpSubmitBtn');
+    if (btn) btn.disabled = true;
+
+    const testPayId = 'pay_test_' + Math.random().toString(36).substring(2, 12);
+
     try {
         const verifyRes = await fetch('/api/payments/verify', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                orderNumber: order.orderNumber,
+                orderNumber: activeRzpSession.order.orderNumber,
                 paymentMethod: 'RAZORPAY',
-                razorpayOrderId: initData.razorpayOrderId,
-                razorpayPaymentId: fakePayId,
-                razorpaySignature: 'simulated_valid_signature'
+                razorpayOrderId: activeRzpSession.initData?.razorpayOrderId || 'order_demo',
+                razorpayPaymentId: testPayId,
+                razorpaySignature: 'simulated_valid_test_signature'
             })
         });
         const vData = await verifyRes.json();
-        order.paymentStatus = 'PAID';
-        order.paymentTransactionId = fakePayId;
-        order.paymentMethod = 'Razorpay (Sandbox)';
-        finishSuccessfulOrder(order);
-        showToast(`Razorpay Test Payment Confirmed! ID: ${fakePayId}`, 'success');
+        if (!verifyRes.ok) throw new Error(vData.message || 'Razorpay authorization failed');
+
+        closeRazorpayModal();
+        activeRzpSession.order.paymentStatus = 'PAID';
+        activeRzpSession.order.paymentTransactionId = testPayId;
+        activeRzpSession.order.paymentMethod = 'Razorpay Test Sandbox';
+        finishSuccessfulOrder(activeRzpSession.order);
+        showToast(`Razorpay payment approved! Payment ID: ${testPayId}`, 'success');
     } catch (err) {
-        showToast(err.message, 'error');
+        showToast(err.message || 'Payment simulation failed', 'error');
+    } finally {
+        if (btn) btn.disabled = false;
     }
 }
 
@@ -1329,6 +1486,9 @@ function showOrderConfirmation(order) {
         if (isPaid) {
             badgeEl.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1';
             badgeEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> PAID (${order.paymentMethod || 'Online'})`;
+        } else if (order.paymentStatus === 'COD_VERIFIED') {
+            badgeEl.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1';
+            badgeEl.innerHTML = `<i class="fa-solid fa-shield-halved"></i> COD VERIFIED (OTP)`;
         } else {
             badgeEl.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 flex items-center gap-1';
             badgeEl.innerHTML = `<i class="fa-solid fa-hand-holding-dollar"></i> COD CONFIRMED`;

@@ -57,20 +57,24 @@ public class PaymentService {
         BigDecimal amount = request.getAmount() != null ? request.getAmount() : order.getTotalAmount();
         String method = request.getPaymentMethod() != null ? request.getPaymentMethod().toUpperCase() : "UPI";
 
+        String effectiveVpa = (request.getMerchantVpa() != null && !request.getMerchantVpa().isBlank())
+                ? request.getMerchantVpa().trim()
+                : merchantUpiVpa;
+
         PaymentInitiateResponse response = new PaymentInitiateResponse();
         response.setOrderNumber(order.getOrderNumber());
         response.setPaymentMethod(method);
         response.setAmount(amount);
         response.setCurrency("INR");
-        response.setMerchantVpa(merchantUpiVpa);
+        response.setMerchantVpa(effectiveVpa);
         response.setRazorpayKeyId(razorpayKeyId);
 
         // 1. Build standard NPCI UPI URI: upi://pay?pa=...&pn=...&am=...&cu=INR&tr=...&tn=...
         try {
-            String encodedName = URLEncoder.encode(merchantName, StandardCharsets.UTF_8);
-            String note = URLEncoder.encode("Order " + order.getOrderNumber(), StandardCharsets.UTF_8);
-            String upiUri = String.format("upi://pay?pa=%s&pn=%s&am=%.2f&cu=INR&tr=%s&tn=%s",
-                    merchantUpiVpa,
+            String encodedName = URLEncoder.encode(merchantName, StandardCharsets.UTF_8).replace("+", "%20");
+            String note = URLEncoder.encode("Order " + order.getOrderNumber(), StandardCharsets.UTF_8).replace("+", "%20");
+            String upiUri = String.format("upi://pay?pa=%s&pn=%s&am=%.2f&cu=INR&tr=%s&tn=%s&mode=02",
+                    effectiveVpa,
                     encodedName,
                     amount.doubleValue(),
                     order.getOrderNumber(),
@@ -78,7 +82,7 @@ public class PaymentService {
             response.setUpiUri(upiUri);
             response.setUpiQrData(upiUri);
         } catch (Exception e) {
-            response.setUpiUri("upi://pay?pa=" + merchantUpiVpa + "&am=" + amount);
+            response.setUpiUri("upi://pay?pa=" + effectiveVpa + "&am=" + amount + "&cu=INR");
             response.setUpiQrData(response.getUpiUri());
         }
 
