@@ -55,6 +55,37 @@ public class ProductService {
     }
 
     @Transactional
+    public Product updateProduct(Long id, Product details) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Product not found with id: " + id));
+        if (details.getName() != null && !details.getName().isBlank()) {
+            product.setName(details.getName());
+        }
+        if (details.getDescription() != null) {
+            product.setDescription(details.getDescription());
+        }
+        if (details.getPrice() != null) {
+            product.setPrice(details.getPrice());
+        }
+        if (details.getOriginalPrice() != null) {
+            product.setOriginalPrice(details.getOriginalPrice());
+        }
+        if (details.getStockQuantity() != null) {
+            product.setStockQuantity(details.getStockQuantity());
+        }
+        if (details.getImageUrl() != null && !details.getImageUrl().isBlank()) {
+            product.setImageUrl(details.getImageUrl());
+        }
+        if (details.getBadge() != null) {
+            product.setBadge(details.getBadge().isBlank() ? null : details.getBadge());
+        }
+        if (details.getCategory() != null) {
+            product.setCategory(details.getCategory());
+        }
+        return productRepository.save(product);
+    }
+
+    @Transactional
     public void deleteProduct(Long id) {
         productRepository.deleteById(id);
     }

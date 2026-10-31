@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NOVA | Modern E-Commerce Experience</title>
+    <title>NOVA | Modern E-Commerce Platform</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -32,9 +32,34 @@
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col selection:bg-brand-500 selection:text-white">
 
-    <!-- Top Announcement Bar -->
-    <div class="bg-slate-900 text-slate-300 text-xs py-2 px-4 text-center font-medium">
-        <span>✨ Free standard shipping on all orders over $100 | Spring Release 2026</span>
+    <!-- Top Mode Switcher Bar -->
+    <div class="bg-slate-950 text-white border-b border-slate-800 py-2 px-4 sm:px-6">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+            <div class="flex items-center gap-2 text-slate-400">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                <span>Active Portal Mode:</span>
+                <span id="activeModeLabel" class="font-bold text-white bg-slate-800 px-2 py-0.5 rounded border border-slate-700">User Mode</span>
+            </div>
+
+            <!-- Segmented Mode Control -->
+            <div class="flex items-center bg-slate-900 p-1 rounded-xl border border-slate-800 shadow-inner">
+                <button onclick="switchMode('user')" id="modeBtnUser"
+                        class="mode-btn px-3.5 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-2 bg-brand-600 text-white shadow-sm">
+                    <i class="fa-solid fa-bag-shopping text-xs"></i>
+                    <span>User Mode (Shopper)</span>
+                </button>
+                <button onclick="switchMode('seller')" id="modeBtnSeller"
+                        class="mode-btn px-3.5 py-1.5 rounded-lg font-medium text-slate-400 hover:text-white transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-boxes-packing text-xs"></i>
+                    <span>Seller Mode</span>
+                </button>
+                <button onclick="switchMode('admin')" id="modeBtnAdmin"
+                        class="mode-btn px-3.5 py-1.5 rounded-lg font-medium text-slate-400 hover:text-white transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-shield-halved text-xs"></i>
+                    <span>Admin Mode</span>
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- Navigation Header -->
@@ -43,18 +68,18 @@
             <div class="flex items-center justify-between h-18 py-3 gap-4">
                 
                 <!-- Logo & Brand -->
-                <div class="flex items-center gap-3 cursor-pointer" onclick="resetFilters()">
+                <div class="flex items-center gap-3 cursor-pointer" onclick="switchMode('user'); resetFilters()">
                     <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 flex items-center justify-center text-white shadow-md shadow-brand-500/20">
                         <i class="fa-solid fa-cube text-xl"></i>
                     </div>
                     <div>
                         <span class="text-xl font-bold tracking-tight text-slate-900">NOVA<span class="text-brand-600">.</span></span>
-                        <span class="hidden sm:inline-block text-xs font-semibold uppercase tracking-wider text-slate-400 ml-1.5 px-2 py-0.5 rounded bg-slate-100">Store</span>
+                        <span id="brandSubTag" class="text-xs font-semibold uppercase tracking-wider text-slate-400 ml-1.5 px-2 py-0.5 rounded bg-slate-100">Store</span>
                     </div>
                 </div>
 
-                <!-- Live Search Bar -->
-                <div class="flex-1 max-w-lg mx-2 hidden md:block">
+                <!-- User Mode Search Bar -->
+                <div id="userHeaderSearch" class="flex-1 max-w-lg mx-2 hidden md:block">
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                             <i class="fa-solid fa-magnifying-glass"></i>
@@ -68,25 +93,46 @@
                     </div>
                 </div>
 
-                <!-- Right Action Icons -->
+                <!-- Right Action Icons (Contextual) -->
                 <div class="flex items-center gap-3">
-                    <!-- Orders Tracker Button -->
-                    <button id="openOrdersBtn" class="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-100 transition-colors">
-                        <i class="fa-solid fa-receipt text-slate-500"></i>
-                        <span class="hidden lg:inline">My Orders</span>
-                    </button>
+                    <!-- User Mode Buttons -->
+                    <div id="userHeaderActions" class="flex items-center gap-3">
+                        <button id="openOrdersBtn" class="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-100 transition-colors">
+                            <i class="fa-solid fa-receipt text-slate-500"></i>
+                            <span class="hidden lg:inline">My Orders</span>
+                        </button>
 
-                    <!-- Cart Drawer Trigger Button -->
-                    <button id="openCartBtn" class="relative flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-medium text-sm transition-all shadow-sm">
-                        <i class="fa-solid fa-bag-shopping text-base"></i>
-                        <span class="hidden sm:inline">Cart</span>
-                        <span id="cartCountBadge" class="bg-brand-500 text-white text-xs px-2 py-0.5 rounded-full font-bold">0</span>
-                    </button>
+                        <button id="openCartBtn" class="relative flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-medium text-sm transition-all shadow-sm">
+                            <i class="fa-solid fa-bag-shopping text-base"></i>
+                            <span class="hidden sm:inline">Cart</span>
+                            <span id="cartCountBadge" class="bg-brand-500 text-white text-xs px-2 py-0.5 rounded-full font-bold">0</span>
+                        </button>
+                    </div>
+
+                    <!-- Seller Mode Quick Action -->
+                    <div id="sellerHeaderActions" class="hidden items-center gap-3">
+                        <button onclick="openAddProductModal()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center gap-2 shadow-sm">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>Add Product</span>
+                        </button>
+                    </div>
+
+                    <!-- Admin Mode Quick Action -->
+                    <div id="adminHeaderActions" class="hidden items-center gap-3">
+                        <a href="/h2-console" target="_blank" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center gap-1.5 border border-slate-300">
+                            <i class="fa-solid fa-database text-xs text-brand-600"></i>
+                            <span class="hidden sm:inline">H2 DB Console</span>
+                        </a>
+                        <button onclick="openAddCategoryModal()" class="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition flex items-center gap-2">
+                            <i class="fa-solid fa-folder-plus"></i>
+                            <span>New Category</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <!-- Mobile Search Bar -->
-            <div class="block md:hidden pb-3">
+            <!-- Mobile Search Bar (User Mode) -->
+            <div id="userMobileSearch" class="block md:hidden pb-3">
                 <div class="relative">
                     <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                         <i class="fa-solid fa-magnifying-glass"></i>
@@ -99,143 +145,329 @@
         </div>
     </header>
 
-    <!-- Hero Banner Section -->
-    <section class="relative bg-gradient-to-b from-indigo-50/60 via-white to-slate-50 border-b border-slate-200/80 overflow-hidden">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-                <div class="lg:col-span-7 space-y-5 text-center lg:text-left">
-                    <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-brand-50 border border-brand-100 text-brand-700 text-xs font-semibold">
-                        <span class="w-2 h-2 rounded-full bg-brand-600 animate-pulse"></span>
-                        Handcrafted Minimalist Essentials
+    <!-- ============================================================== -->
+    <!-- VIEW 1: USER MODE (SHOPPER EXPERIENCE)                         -->
+    <!-- ============================================================== -->
+    <div id="viewUserMode" class="mode-view">
+        <!-- Hero Banner Section -->
+        <section class="relative bg-gradient-to-b from-indigo-50/60 via-white to-slate-50 border-b border-slate-200/80 overflow-hidden">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                    <div class="lg:col-span-7 space-y-5 text-center lg:text-left">
+                        <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-brand-50 border border-brand-100 text-brand-700 text-xs font-semibold">
+                            <span class="w-2 h-2 rounded-full bg-brand-600 animate-pulse"></span>
+                            Handcrafted Minimalist Essentials
+                        </div>
+                        <h1 class="text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight">
+                            Engineered for style, <br class="hidden sm:block">
+                            <span class="text-transparent bg-clip-text bg-gradient-to-r from-brand-600 to-indigo-600">built for performance.</span>
+                        </h1>
+                        <p class="text-base sm:text-lg text-slate-600 max-w-xl mx-auto lg:mx-0">
+                            Explore our curated selection of high-fidelity audio, professional computing gear, minimalist everyday carry, and modern lifestyle products.
+                        </p>
+                        <div class="flex flex-wrap gap-3 justify-center lg:justify-start pt-2">
+                            <a href="#catalog" class="px-6 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm transition shadow-md shadow-brand-500/20 flex items-center gap-2">
+                                <span>Browse Catalog</span>
+                                <i class="fa-solid fa-arrow-down text-xs"></i>
+                            </a>
+                            <button onclick="filterByFeatured()" class="px-5 py-3 rounded-xl bg-white border border-slate-300 hover:border-slate-400 text-slate-700 font-semibold text-sm transition">
+                                ⭐ Featured Picks
+                            </button>
+                        </div>
                     </div>
-                    <h1 class="text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight">
-                        Engineered for style, <br class="hidden sm:block">
-                        <span class="text-transparent bg-clip-text bg-gradient-to-r from-brand-600 to-indigo-600">built for performance.</span>
-                    </h1>
-                    <p class="text-base sm:text-lg text-slate-600 max-w-xl mx-auto lg:mx-0">
-                        Explore our curated selection of high-fidelity audio, professional computing gear, minimalist everyday carry, and modern lifestyle products.
-                    </p>
-                    <div class="flex flex-wrap gap-3 justify-center lg:justify-start pt-2">
-                        <a href="#catalog" class="px-6 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm transition shadow-md shadow-brand-500/20 flex items-center gap-2">
-                            <span>Browse Catalog</span>
-                            <i class="fa-solid fa-arrow-down text-xs"></i>
-                        </a>
-                        <button onclick="filterByFeatured()" class="px-5 py-3 rounded-xl bg-white border border-slate-300 hover:border-slate-400 text-slate-700 font-semibold text-sm transition">
-                            ⭐ Featured Picks
-                        </button>
+                    <div class="lg:col-span-5 relative hidden lg:block">
+                        <div class="relative mx-auto max-w-sm rounded-3xl overflow-hidden shadow-2xl border-4 border-white bg-slate-900 group">
+                            <img src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80"
+                                 alt="Featured Audio"
+                                 class="w-full h-80 object-cover object-center group-hover:scale-105 transition-transform duration-500">
+                            <div class="absolute bottom-0 inset-x-0 p-5 bg-gradient-to-t from-slate-950/90 via-slate-950/60 to-transparent text-white">
+                                <span class="text-xs uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-brand-600 inline-block mb-1">Editor's Choice</span>
+                                <h3 class="text-lg font-bold">Aura ANC Wireless Headphones</h3>
+                                <p class="text-xs text-slate-300">Studio audio fidelity with next-gen spatial acoustic drivers.</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="lg:col-span-5 relative hidden lg:block">
-                    <div class="relative mx-auto max-w-sm rounded-3xl overflow-hidden shadow-2xl border-4 border-white bg-slate-900 group">
-                        <img src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80"
-                             alt="Featured Audio"
-                             class="w-full h-80 object-cover object-center group-hover:scale-105 transition-transform duration-500">
-                        <div class="absolute bottom-0 inset-x-0 p-5 bg-gradient-to-t from-slate-950/90 via-slate-950/60 to-transparent text-white">
-                            <span class="text-xs uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-brand-600 inline-block mb-1">Editor's Choice</span>
-                            <h3 class="text-lg font-bold">Aura ANC Wireless Headphones</h3>
-                            <p class="text-xs text-slate-300">Studio audio fidelity with next-gen spatial acoustic drivers.</p>
+
+                <!-- Value Props Row -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12 pt-8 border-t border-slate-200/70 text-slate-600">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-brand-600 shadow-sm shrink-0">
+                            <i class="fa-solid fa-truck-fast"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-slate-900">Free Express Shipping</h4>
+                            <p class="text-xs text-slate-500">Orders over $100</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-brand-600 shadow-sm shrink-0">
+                            <i class="fa-solid fa-shield-halved"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-slate-900">2-Year Warranty</h4>
+                            <p class="text-xs text-slate-500">100% Guaranteed</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-brand-600 shadow-sm shrink-0">
+                            <i class="fa-solid fa-arrow-rotate-left"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-slate-900">30-Day Hassle Returns</h4>
+                            <p class="text-xs text-slate-500">Easy self-service</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-brand-600 shadow-sm shrink-0">
+                            <i class="fa-solid fa-lock"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-slate-900">Encrypted Checkout</h4>
+                            <p class="text-xs text-slate-500">Bank-level security</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Product Catalog Section -->
+        <main id="catalog" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex-1 w-full">
+            <!-- Filter & Category Toolbar -->
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 mb-8 border-b border-slate-200">
+                <!-- Category Pills -->
+                <div id="categoryPills" class="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-none">
+                    <button onclick="filterCategory('all')"
+                            data-category="all"
+                            class="category-pill active px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap bg-brand-600 text-white shadow-sm transition">
+                        All Products
+                    </button>
+                </div>
+
+                <!-- Sorting & Counter -->
+                <div class="flex items-center justify-between md:justify-end gap-3 shrink-0">
+                    <span id="productCount" class="text-xs text-slate-500 font-medium">Loading products...</span>
+                    <div class="relative">
+                        <select id="sortBy" onchange="applySorting()" class="text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-xl px-3 py-2 pr-8 appearance-none focus:outline-none focus:border-brand-500 cursor-pointer">
+                            <option value="default">Default: Featured First</option>
+                            <option value="price-asc">Price: Low to High</option>
+                            <option value="price-desc">Price: High to Low</option>
+                            <option value="rating">Highest Rated</option>
+                            <option value="name">Product Name (A-Z)</option>
+                        </select>
+                        <div class="absolute inset-y-0 right-0 pr-2.5 flex items-center pointer-events-none text-slate-400 text-xs">
+                            <i class="fa-solid fa-chevron-down"></i>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Value Props Row -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12 pt-8 border-t border-slate-200/70 text-slate-600">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-brand-600 shadow-sm shrink-0">
-                        <i class="fa-solid fa-truck-fast"></i>
-                    </div>
-                    <div>
-                        <h4 class="text-xs font-bold text-slate-900">Free Express Shipping</h4>
-                        <p class="text-xs text-slate-500">Orders over $100</p>
-                    </div>
-                </div>
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-brand-600 shadow-sm shrink-0">
-                        <i class="fa-solid fa-shield-halved"></i>
-                    </div>
-                    <div>
-                        <h4 class="text-xs font-bold text-slate-900">2-Year Warranty</h4>
-                        <p class="text-xs text-slate-500">100% Guaranteed</p>
-                    </div>
-                </div>
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-brand-600 shadow-sm shrink-0">
-                        <i class="fa-solid fa-arrow-rotate-left"></i>
-                    </div>
-                    <div>
-                        <h4 class="text-xs font-bold text-slate-900">30-Day Hassle Returns</h4>
-                        <p class="text-xs text-slate-500">Easy self-service</p>
-                    </div>
-                </div>
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-brand-600 shadow-sm shrink-0">
-                        <i class="fa-solid fa-lock"></i>
-                    </div>
-                    <div>
-                        <h4 class="text-xs font-bold text-slate-900">Encrypted Checkout</h4>
-                        <p class="text-xs text-slate-500">Bank-level security</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+            <!-- Product Grid -->
+            <div id="productGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
 
-    <!-- Main Content: Product Catalog -->
-    <main id="catalog" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex-1 w-full">
-        
-        <!-- Filter & Category Toolbar -->
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 mb-8 border-b border-slate-200">
-            <!-- Category Pills -->
-            <div id="categoryPills" class="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-none">
-                <button onclick="filterCategory('all')"
-                        data-category="all"
-                        class="category-pill active px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap bg-brand-600 text-white shadow-sm transition">
-                    All Products
+            <!-- Empty State -->
+            <div id="emptyState" class="hidden text-center py-20">
+                <div class="w-16 h-16 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto text-2xl mb-4">
+                    <i class="fa-solid fa-box-open"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-900 mb-1">No products found</h3>
+                <p class="text-sm text-slate-500 max-w-md mx-auto mb-5">We couldn't find any products matching your search or filters.</p>
+                <button onclick="resetFilters()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold rounded-xl transition">
+                    Reset All Filters
                 </button>
-                <!-- Categories dynamically loaded here -->
             </div>
+        </main>
+    </div>
 
-            <!-- Sorting & Counter -->
-            <div class="flex items-center justify-between md:justify-end gap-3 shrink-0">
-                <span id="productCount" class="text-xs text-slate-500 font-medium">Loading products...</span>
-                <div class="relative">
-                    <select id="sortBy" onchange="applySorting()" class="text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-xl px-3 py-2 pr-8 appearance-none focus:outline-none focus:border-brand-500 cursor-pointer">
-                        <option value="default">Default: Featured First</option>
-                        <option value="price-asc">Price: Low to High</option>
-                        <option value="price-desc">Price: High to Low</option>
-                        <option value="rating">Highest Rated</option>
-                        <option value="name">Product Name (A-Z)</option>
-                    </select>
-                    <div class="absolute inset-y-0 right-0 pr-2.5 flex items-center pointer-events-none text-slate-400 text-xs">
-                        <i class="fa-solid fa-chevron-down"></i>
-                    </div>
+    <!-- ============================================================== -->
+    <!-- VIEW 2: SELLER MODE (MERCHANT / INVENTORY HUB)                 -->
+    <!-- ============================================================== -->
+    <div id="viewSellerMode" class="mode-view hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
+        <!-- Seller Portal Header -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 mb-8 border-b border-slate-200">
+            <div>
+                <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-emerald-100 text-emerald-800 text-xs font-bold mb-2">
+                    <i class="fa-solid fa-store"></i> Merchant Inventory Manager
+                </div>
+                <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900">Seller Hub & Catalog</h1>
+                <p class="text-sm text-slate-500 mt-1">Manage listings, edit unit pricing, adjust inventory stock levels, and add new products.</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="openAddProductModal()" class="px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition shadow-md shadow-emerald-600/20 flex items-center gap-2">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>List New Product</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Seller KPI Metrics -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                <span class="text-xs font-semibold text-slate-500">Active Listings</span>
+                <h3 id="sellerTotalListings" class="text-2xl font-extrabold text-slate-900 mt-1">-</h3>
+                <span class="text-[11px] text-emerald-600 font-medium">Live on storefront</span>
+            </div>
+            <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                <span class="text-xs font-semibold text-slate-500">Total Stock Quantity</span>
+                <h3 id="sellerTotalStock" class="text-2xl font-extrabold text-slate-900 mt-1">-</h3>
+                <span class="text-[11px] text-slate-500">Available across catalog</span>
+            </div>
+            <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                <span class="text-xs font-semibold text-slate-500">Low Stock Items</span>
+                <h3 id="sellerLowStock" class="text-2xl font-extrabold text-amber-600 mt-1">-</h3>
+                <span class="text-[11px] text-amber-600 font-medium">< 10 units remaining</span>
+            </div>
+            <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                <span class="text-xs font-semibold text-slate-500">Out of Stock</span>
+                <h3 id="sellerOutOfStock" class="text-2xl font-extrabold text-rose-600 mt-1">-</h3>
+                <span class="text-[11px] text-rose-600 font-medium">Needs restocking</span>
+            </div>
+        </div>
+
+        <!-- Seller Products Table -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+            <div class="p-5 border-b border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <i class="fa-solid fa-boxes-stacked text-emerald-600"></i>
+                    <span>All Product Listings</span>
+                </h3>
+                <div class="relative w-full sm:w-72">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-xs"></i>
+                    <input type="text" id="sellerSearchInput" oninput="filterSellerTable(this.value)"
+                           placeholder="Filter seller inventory..."
+                           class="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-500">
                 </div>
             </div>
-        </div>
 
-        <!-- Product Grid -->
-        <div id="productGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            <!-- Skeletons populated during initial fetch -->
-        </div>
-
-        <!-- Empty State (hidden by default) -->
-        <div id="emptyState" class="hidden text-center py-20">
-            <div class="w-16 h-16 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto text-2xl mb-4">
-                <i class="fa-solid fa-box-open"></i>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-slate-50/70 text-slate-500 font-bold uppercase tracking-wider text-[11px] border-b border-slate-200">
+                        <tr>
+                            <th class="py-3.5 px-6">Product</th>
+                            <th class="py-3.5 px-4">Category</th>
+                            <th class="py-3.5 px-4">Price</th>
+                            <th class="py-3.5 px-4">Stock Level</th>
+                            <th class="py-3.5 px-4">Status</th>
+                            <th class="py-3.5 px-6 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sellerTableBody" class="divide-y divide-slate-100">
+                        <!-- Populated dynamically -->
+                    </tbody>
+                </table>
             </div>
-            <h3 class="text-lg font-bold text-slate-900 mb-1">No products found</h3>
-            <p class="text-sm text-slate-500 max-w-md mx-auto mb-5">We couldn't find any products matching your search or filters. Try adjusting your criteria.</p>
-            <button onclick="resetFilters()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold rounded-xl transition">
-                Reset All Filters
-            </button>
         </div>
-    </main>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- VIEW 3: ADMIN MODE (EXECUTIVE STORE DASHBOARD)                  -->
+    <!-- ============================================================== -->
+    <div id="viewAdminMode" class="mode-view hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
+        <!-- Admin Portal Header -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 mb-8 border-b border-slate-200">
+            <div>
+                <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-purple-100 text-purple-800 text-xs font-bold mb-2">
+                    <i class="fa-solid fa-shield-halved"></i> Master Administrator Console
+                </div>
+                <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900">Admin Control & Operations</h1>
+                <p class="text-sm text-slate-500 mt-1">Review live financial metrics, update order fulfillment status, manage categories, and inspect H2 database.</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="refreshAdminData()" class="px-4 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition flex items-center gap-2">
+                    <i class="fa-solid fa-arrows-rotate"></i>
+                    <span>Refresh Data</span>
+                </button>
+                <a href="/h2-console" target="_blank" class="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs transition flex items-center gap-2 shadow-sm">
+                    <i class="fa-solid fa-database"></i>
+                    <span>Open H2 SQL Console</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Admin Executive KPI Metrics -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                <span class="text-xs font-semibold text-slate-500">Gross Sales Revenue</span>
+                <h3 id="adminTotalRevenue" class="text-2xl font-extrabold text-slate-900 mt-1">$0.00</h3>
+                <span class="text-[11px] text-emerald-600 font-medium">Excluding cancelled orders</span>
+            </div>
+            <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                <span class="text-xs font-semibold text-slate-500">Total Customer Orders</span>
+                <h3 id="adminTotalOrders" class="text-2xl font-extrabold text-slate-900 mt-1">-</h3>
+                <span class="text-[11px] text-brand-600 font-medium">Lifetime placements</span>
+            </div>
+            <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                <span class="text-xs font-semibold text-slate-500">Fulfillment Pipeline</span>
+                <h3 id="adminPendingOrders" class="text-2xl font-extrabold text-amber-600 mt-1">-</h3>
+                <span class="text-[11px] text-amber-600 font-medium">Pending / Confirmed / Processing</span>
+            </div>
+            <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                <span class="text-xs font-semibold text-slate-500">Total Products Managed</span>
+                <h3 id="adminTotalProducts" class="text-2xl font-extrabold text-slate-900 mt-1">-</h3>
+                <span class="text-[11px] text-slate-500">Active catalog items</span>
+            </div>
+        </div>
+
+        <!-- Master Order Management Table -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden mb-8">
+            <div class="p-5 border-b border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div>
+                    <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                        <i class="fa-solid fa-truck-ramp-box text-purple-600"></i>
+                        <span>Customer Orders & Status Pipeline</span>
+                    </h3>
+                    <p class="text-xs text-slate-500 mt-0.5">Change an order's status dropdown to instantly update the customer's tracking status.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-slate-500 font-medium" id="adminOrderCount">Loading orders...</span>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-slate-50/70 text-slate-500 font-bold uppercase tracking-wider text-[11px] border-b border-slate-200">
+                        <tr>
+                            <th class="py-3.5 px-6">Order ID & Date</th>
+                            <th class="py-3.5 px-4">Customer Details</th>
+                            <th class="py-3.5 px-4">Items</th>
+                            <th class="py-3.5 px-4">Total Amount</th>
+                            <th class="py-3.5 px-4">Payment</th>
+                            <th class="py-3.5 px-6 text-right">Update Order Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminOrdersTableBody" class="divide-y divide-slate-100">
+                        <!-- Populated dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Categories & Taxonomy Management -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-200 mb-4">
+                <div>
+                    <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                        <i class="fa-solid fa-tags text-purple-600"></i>
+                        <span>Product Categories</span>
+                    </h3>
+                    <p class="text-xs text-slate-500 mt-0.5">Manage taxonomy and classification across the store.</p>
+                </div>
+                <button onclick="openAddCategoryModal()" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-plus text-xs"></i>
+                    <span>Add Category</span>
+                </button>
+            </div>
+
+            <div id="adminCategoryCards" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                <!-- Dynamically loaded categories -->
+            </div>
+        </div>
+    </div>
 
     <!-- Footer -->
     <footer class="bg-slate-900 text-slate-400 text-sm mt-auto border-t border-slate-800">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-6">
                 <div class="space-y-3">
                     <div class="flex items-center gap-2">
                         <div class="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center text-white">
@@ -244,59 +476,49 @@
                         <span class="text-lg font-bold text-white tracking-tight">NOVA<span class="text-brand-500">.</span></span>
                     </div>
                     <p class="text-xs text-slate-400">
-                        Curated collection of next-generation gadgets, audio gear, apparel and lifestyle essentials.
+                        Full-Stack E-Commerce platform featuring separate User, Seller, and Admin environments.
                     </p>
                 </div>
                 <div>
-                    <h5 class="text-xs font-bold uppercase tracking-wider text-white mb-3">Shop Categories</h5>
+                    <h5 class="text-xs font-bold uppercase tracking-wider text-white mb-3">Portal Switcher</h5>
                     <ul class="space-y-2 text-xs">
-                        <li><a href="javascript:void(0)" onclick="filterCategory('electronics')" class="hover:text-white transition">Electronics</a></li>
-                        <li><a href="javascript:void(0)" onclick="filterCategory('audio')" class="hover:text-white transition">Audio & Sound</a></li>
-                        <li><a href="javascript:void(0)" onclick="filterCategory('fashion')" class="hover:text-white transition">Fashion & Apparel</a></li>
-                        <li><a href="javascript:void(0)" onclick="filterCategory('home-living')" class="hover:text-white transition">Home & Living</a></li>
-                        <li><a href="javascript:void(0)" onclick="filterCategory('accessories')" class="hover:text-white transition">Everyday Carry</a></li>
+                        <li><a href="javascript:void(0)" onclick="switchMode('user')" class="hover:text-white transition">🛒 User Mode (Customer Storefront)</a></li>
+                        <li><a href="javascript:void(0)" onclick="switchMode('seller')" class="hover:text-white transition">📦 Seller Mode (Inventory & Catalog Hub)</a></li>
+                        <li><a href="javascript:void(0)" onclick="switchMode('admin')" class="hover:text-white transition">🛡️ Admin Mode (Executive Operations)</a></li>
                     </ul>
                 </div>
                 <div>
                     <h5 class="text-xs font-bold uppercase tracking-wider text-white mb-3">Developer & API</h5>
                     <ul class="space-y-2 text-xs">
                         <li><a href="/api/products" target="_blank" class="hover:text-white transition">Products API (<code class="text-brand-400">/api/products</code>)</a></li>
-                        <li><a href="/api/categories" target="_blank" class="hover:text-white transition">Categories API (<code class="text-brand-400">/api/categories</code>)</a></li>
                         <li><a href="/api/orders" target="_blank" class="hover:text-white transition">Orders API (<code class="text-brand-400">/api/orders</code>)</a></li>
+                        <li><a href="/api/orders/stats/dashboard" target="_blank" class="hover:text-white transition">Dashboard Stats API</a></li>
                         <li><a href="/h2-console" target="_blank" class="hover:text-white transition">H2 In-Memory DB Console</a></li>
                     </ul>
                 </div>
                 <div>
                     <h5 class="text-xs font-bold uppercase tracking-wider text-white mb-3">System Info</h5>
-                    <p class="text-xs text-slate-400 mb-2">Powered by Java 24 & Spring Boot 3.4.2</p>
+                    <p class="text-xs text-slate-400 mb-2">Java 24 & Spring Boot 3.4.2</p>
                     <div class="flex items-center gap-2 text-xs text-emerald-400 font-medium">
                         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
                         Backend API Live & Operational
                     </div>
                 </div>
             </div>
-            <div class="pt-8 border-t border-slate-800 text-xs text-slate-500 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="pt-6 border-t border-slate-800 text-xs text-slate-500 flex flex-col sm:flex-row justify-between items-center gap-4">
                 <span>&copy; 2026 NOVA Store Inc. All rights reserved.</span>
-                <div class="flex items-center gap-4 text-slate-400">
-                    <i class="fa-brands fa-cc-visa text-xl"></i>
-                    <i class="fa-brands fa-cc-mastercard text-xl"></i>
-                    <i class="fa-brands fa-cc-apple-pay text-xl"></i>
-                    <i class="fa-brands fa-cc-paypal text-xl"></i>
-                </div>
+                <span class="text-slate-400 font-mono text-[11px]">JDBC: jdbc:h2:mem:ecommercedb</span>
             </div>
         </div>
     </footer>
 
     <!-- ==================== MODALS & DRAWERS ==================== -->
 
-    <!-- Shopping Cart Drawer -->
+    <!-- Shopping Cart Drawer (User Mode) -->
     <div id="cartDrawer" class="fixed inset-0 z-50 overflow-hidden hidden" aria-labelledby="slide-over-title" role="dialog" aria-modal="true">
-        <!-- Backdrop -->
         <div id="cartBackdrop" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity opacity-0" onclick="closeCart()"></div>
-
         <div class="fixed inset-y-0 right-0 pl-10 max-w-full flex">
             <div id="cartPanel" class="w-screen max-w-md bg-white shadow-2xl flex flex-col transform translate-x-full transition-transform ease-out duration-300">
-                <!-- Drawer Header -->
                 <div class="p-6 border-b border-slate-200 flex items-center justify-between">
                     <div class="flex items-center gap-2">
                         <i class="fa-solid fa-bag-shopping text-brand-600 text-lg"></i>
@@ -319,12 +541,8 @@
                     </div>
                 </div>
 
-                <!-- Cart Items Container -->
-                <div id="cartItemsList" class="flex-1 overflow-y-auto p-6 space-y-4 divide-y divide-slate-100">
-                    <!-- Populated dynamically -->
-                </div>
+                <div id="cartItemsList" class="flex-1 overflow-y-auto p-6 space-y-4 divide-y divide-slate-100"></div>
 
-                <!-- Empty Cart Template -->
                 <div id="cartEmptyState" class="hidden flex-1 flex flex-col items-center justify-center p-6 text-center">
                     <div class="w-16 h-16 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center text-2xl mb-3">
                         <i class="fa-solid fa-bag-shopping"></i>
@@ -336,7 +554,6 @@
                     </button>
                 </div>
 
-                <!-- Drawer Footer Summary -->
                 <div id="cartFooter" class="p-6 bg-slate-50 border-t border-slate-200 space-y-4">
                     <div class="space-y-1.5 text-xs text-slate-600">
                         <div class="flex justify-between">
@@ -366,24 +583,21 @@
         </div>
     </div>
 
-    <!-- Product Quick View Modal -->
-    <div id="productModal" class="fixed inset-0 z-50 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <!-- Product Quick View Modal (User Mode) -->
+    <div id="productModal" class="fixed inset-0 z-50 overflow-y-auto hidden" role="dialog" aria-modal="true">
         <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-            <div id="productModalBackdrop" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="closeProductModal()"></div>
+            <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="closeProductModal()"></div>
             <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
-            <div id="productModalContent" class="inline-block align-bottom bg-white rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full">
-                <!-- Modal content dynamically injected -->
-            </div>
+            <div id="productModalContent" class="inline-block align-bottom bg-white rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full"></div>
         </div>
     </div>
 
-    <!-- Checkout Modal -->
-    <div id="checkoutModal" class="fixed inset-0 z-50 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <!-- Checkout Modal (User Mode) -->
+    <div id="checkoutModal" class="fixed inset-0 z-50 overflow-y-auto hidden" role="dialog" aria-modal="true">
         <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
             <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="closeCheckoutModal()"></div>
             <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
             <div class="inline-block align-bottom bg-white rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
-                
                 <div class="p-6 sm:p-8">
                     <div class="flex items-center justify-between pb-4 border-b border-slate-200">
                         <div class="flex items-center gap-2">
@@ -398,53 +612,50 @@
                     </div>
 
                     <form id="checkoutForm" onsubmit="handlePlaceOrder(event)" class="mt-6 space-y-6">
-                        <!-- Customer Info -->
                         <div>
                             <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">1. Contact Information</h4>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-xs font-semibold text-slate-700 mb-1">Full Name *</label>
                                     <input type="text" id="custName" required placeholder="John Doe"
-                                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none">
+                                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-brand-500 focus:outline-none">
                                 </div>
                                 <div>
                                     <label class="block text-xs font-semibold text-slate-700 mb-1">Email Address *</label>
                                     <input type="email" id="custEmail" required placeholder="john@example.com"
-                                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none">
+                                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-brand-500 focus:outline-none">
                                 </div>
                                 <div class="sm:col-span-2">
                                     <label class="block text-xs font-semibold text-slate-700 mb-1">Phone Number</label>
                                     <input type="tel" id="custPhone" placeholder="+1 (555) 000-0000"
-                                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none">
+                                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-brand-500 focus:outline-none">
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Shipping Info -->
                         <div>
                             <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">2. Shipping Address</h4>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div class="sm:col-span-2">
                                     <label class="block text-xs font-semibold text-slate-700 mb-1">Street Address *</label>
                                     <input type="text" id="custAddress" required placeholder="742 Evergreen Terrace"
-                                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none">
+                                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-brand-500 focus:outline-none">
                                 </div>
                                 <div>
                                     <label class="block text-xs font-semibold text-slate-700 mb-1">City *</label>
                                     <input type="text" id="custCity" required placeholder="Springfield"
-                                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none">
+                                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-brand-500 focus:outline-none">
                                 </div>
                                 <div>
                                     <label class="block text-xs font-semibold text-slate-700 mb-1">Postal Code *</label>
                                     <input type="text" id="custPostal" required placeholder="97477"
-                                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none">
+                                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-brand-500 focus:outline-none">
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Payment Method -->
                         <div>
-                            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">3. Payment Details (Simulation)</h4>
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">3. Payment Details</h4>
                             <div class="grid grid-cols-3 gap-3 mb-4">
                                 <label class="payment-option cursor-pointer border-2 border-brand-500 bg-brand-50/50 rounded-xl p-3 text-center flex flex-col items-center gap-1 transition">
                                     <input type="radio" name="paymentMethod" value="Credit Card" checked class="hidden">
@@ -467,24 +678,23 @@
                                 <div>
                                     <label class="block text-xs font-semibold text-slate-700 mb-1">Card Number</label>
                                     <input type="text" placeholder="4242 •••• •••• 4242" value="4242 4242 4242 4242"
-                                           class="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-sm focus:border-brand-500 focus:outline-none font-mono">
+                                           class="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-sm font-mono">
                                 </div>
                                 <div class="grid grid-cols-2 gap-3">
                                     <div>
                                         <label class="block text-xs font-semibold text-slate-700 mb-1">Expires</label>
                                         <input type="text" placeholder="MM/YY" value="12/28"
-                                               class="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-sm focus:border-brand-500 focus:outline-none font-mono">
+                                               class="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-sm font-mono">
                                     </div>
                                     <div>
                                         <label class="block text-xs font-semibold text-slate-700 mb-1">CVV</label>
                                         <input type="password" placeholder="•••" value="888" maxlength="4"
-                                               class="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-sm focus:border-brand-500 focus:outline-none font-mono">
+                                               class="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-sm font-mono">
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Summary & Place Order Button -->
                         <div class="pt-4 border-t border-slate-200">
                             <div class="flex justify-between items-center mb-4">
                                 <span class="text-sm font-medium text-slate-600">Total Due:</span>
@@ -492,9 +702,7 @@
                             </div>
 
                             <button type="submit" id="submitOrderBtn" class="w-full py-4 px-6 rounded-2xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-base transition shadow-lg shadow-brand-500/25 flex items-center justify-center gap-2">
-                                <span id="submitOrderSpinner" class="hidden">
-                                    <i class="fa-solid fa-circle-notch fa-spin"></i>
-                                </span>
+                                <span id="submitOrderSpinner" class="hidden"><i class="fa-solid fa-circle-notch fa-spin"></i></span>
                                 <span id="submitOrderText">Confirm & Place Order</span>
                             </button>
                         </div>
@@ -505,7 +713,7 @@
     </div>
 
     <!-- Order Confirmation Modal -->
-    <div id="orderSuccessModal" class="fixed inset-0 z-50 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div id="orderSuccessModal" class="fixed inset-0 z-50 overflow-y-auto hidden" role="dialog" aria-modal="true">
         <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
             <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"></div>
             <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
@@ -547,8 +755,8 @@
         </div>
     </div>
 
-    <!-- Order History / Tracker Modal -->
-    <div id="ordersModal" class="fixed inset-0 z-50 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <!-- Order History / Customer Tracker Modal -->
+    <div id="ordersModal" class="fixed inset-0 z-50 overflow-y-auto hidden" role="dialog" aria-modal="true">
         <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
             <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="closeOrdersModal()"></div>
             <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
@@ -564,7 +772,6 @@
                         </button>
                     </div>
 
-                    <!-- Search / Lookup by Order Number -->
                     <div class="mt-4 flex gap-2">
                         <input type="text" id="lookupOrderNumber" placeholder="Look up order by number (e.g. ORD-20261031-XXXX)"
                                class="flex-1 px-3.5 py-2 rounded-xl border border-slate-300 text-xs focus:border-brand-500 focus:outline-none">
@@ -573,10 +780,159 @@
                         </button>
                     </div>
 
-                    <!-- Orders List Container -->
-                    <div id="ordersListContainer" class="mt-6 space-y-4 max-h-96 overflow-y-auto pr-1">
-                        <!-- Injected dynamically -->
+                    <div id="ordersListContainer" class="mt-6 space-y-4 max-h-96 overflow-y-auto pr-1"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== SELLER & ADMIN MODALS ==================== -->
+
+    <!-- Add Product Modal (Seller & Admin) -->
+    <div id="addProductModal" class="fixed inset-0 z-50 overflow-y-auto hidden" role="dialog" aria-modal="true">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="closeAddProductModal()"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+            <div class="inline-block align-bottom bg-white rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-xl sm:w-full">
+                <div class="p-6 sm:p-8">
+                    <div class="flex items-center justify-between pb-4 border-b border-slate-200">
+                        <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-circle-plus text-emerald-600"></i>
+                            <span>Create New Product Listing</span>
+                        </h3>
+                        <button onclick="closeAddProductModal()" class="text-slate-400 hover:text-slate-600">
+                            <i class="fa-solid fa-xmark text-lg"></i>
+                        </button>
                     </div>
+
+                    <form id="addProductForm" onsubmit="handleCreateProduct(event)" class="mt-5 space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Product Title *</label>
+                            <input type="text" id="newProdName" required placeholder="e.g. Wireless ANC Earbuds Pro"
+                                   class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:border-emerald-500 focus:outline-none">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Category *</label>
+                                <select id="newProdCategory" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none focus:border-emerald-500">
+                                    <!-- Populated dynamically -->
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Stock Quantity *</label>
+                                <input type="number" id="newProdStock" required min="0" value="25"
+                                       class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:border-emerald-500 focus:outline-none">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Selling Price ($) *</label>
+                                <input type="number" id="newProdPrice" required step="0.01" min="0.01" placeholder="99.99"
+                                       class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:border-emerald-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Original Price ($) (Optional)</label>
+                                <input type="number" id="newProdOriginalPrice" step="0.01" min="0" placeholder="129.99"
+                                       class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:border-emerald-500 focus:outline-none">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Image URL</label>
+                            <input type="url" id="newProdImage" placeholder="https://images.unsplash.com/photo-..."
+                                   class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:border-emerald-500 focus:outline-none">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Promotional Badge (Optional)</label>
+                            <input type="text" id="newProdBadge" placeholder="e.g. Best Seller, New, 20% OFF"
+                                   class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:border-emerald-500 focus:outline-none">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Description</label>
+                            <textarea id="newProdDesc" rows="3" placeholder="Enter product features, specs, and details..."
+                                      class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs focus:border-emerald-500 focus:outline-none"></textarea>
+                        </div>
+
+                        <div class="pt-3 border-t border-slate-200 flex justify-end gap-3">
+                            <button type="button" onclick="closeAddProductModal()" class="px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-600 hover:bg-slate-50 transition">Cancel</button>
+                            <button type="submit" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-sm">Save & Publish Listing</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Stock & Price Quick Modal (Seller Mode) -->
+    <div id="quickEditModal" class="fixed inset-0 z-50 overflow-y-auto hidden" role="dialog" aria-modal="true">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="closeQuickEditModal()"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+            <div class="inline-block align-bottom bg-white rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full">
+                <div class="p-6">
+                    <div class="flex items-center justify-between pb-4 border-b border-slate-200">
+                        <h3 class="text-base font-bold text-slate-900" id="quickEditTitle">Update Listing</h3>
+                        <button onclick="closeQuickEditModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <form id="quickEditForm" onsubmit="handleQuickEditSubmit(event)" class="mt-4 space-y-4">
+                        <input type="hidden" id="quickEditId">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Price ($)</label>
+                            <input type="number" id="quickEditPrice" step="0.01" min="0.01" required class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-mono font-bold">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Stock Quantity</label>
+                            <input type="number" id="quickEditStock" min="0" required class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-bold">
+                        </div>
+                        <div class="pt-3 border-t border-slate-200 flex justify-end gap-2">
+                            <button type="button" onclick="closeQuickEditModal()" class="px-4 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-600 hover:bg-slate-50">Cancel</button>
+                            <button type="submit" class="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold">Update Listing</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Category Modal (Admin Mode) -->
+    <div id="addCategoryModal" class="fixed inset-0 z-50 overflow-y-auto hidden" role="dialog" aria-modal="true">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="closeAddCategoryModal()"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+            <div class="inline-block align-bottom bg-white rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full">
+                <div class="p-6">
+                    <div class="flex items-center justify-between pb-4 border-b border-slate-200">
+                        <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-folder-plus text-purple-600"></i>
+                            <span>Create New Category</span>
+                        </h3>
+                        <button onclick="closeAddCategoryModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <form id="addCategoryForm" onsubmit="handleCreateCategory(event)" class="mt-4 space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Category Name *</label>
+                            <input type="text" id="newCatName" required placeholder="e.g. Gaming & VR"
+                                   class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs focus:border-purple-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">URL Slug (Optional)</label>
+                            <input type="text" id="newCatSlug" placeholder="gaming-vr (auto-generated if empty)"
+                                   class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs focus:border-purple-500 focus:outline-none font-mono">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Description</label>
+                            <input type="text" id="newCatDesc" placeholder="Brief category description..."
+                                   class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs focus:border-purple-500 focus:outline-none">
+                        </div>
+                        <div class="pt-3 border-t border-slate-200 flex justify-end gap-2">
+                            <button type="button" onclick="closeAddCategoryModal()" class="px-4 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-600 hover:bg-slate-50">Cancel</button>
+                            <button type="submit" class="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold">Add Category</button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>

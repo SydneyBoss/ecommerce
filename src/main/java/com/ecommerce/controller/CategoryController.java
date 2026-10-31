@@ -31,4 +31,14 @@ public class CategoryController {
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
+
+    @PostMapping
+    public ResponseEntity<Category> createCategory(@RequestBody Category category) {
+        if (category.getSlug() == null || category.getSlug().isBlank()) {
+            String slug = category.getName().toLowerCase().replaceAll("[^a-z0-9]+", "-").replaceAll("(^-|-$)", "");
+            category.setSlug(slug);
+        }
+        Category saved = categoryRepository.save(category);
+        return ResponseEntity.ok(saved);
+    }
 }

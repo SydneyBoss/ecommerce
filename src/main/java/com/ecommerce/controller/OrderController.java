@@ -50,4 +50,26 @@ public class OrderController {
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(Collections.singletonMap("error", "Order not found with number: " + orderNumber)));
     }
+
+    @PatchMapping("/{orderNumber}/status")
+    public ResponseEntity<?> updateOrderStatus(
+            @PathVariable String orderNumber,
+            @RequestBody Map<String, String> body) {
+        try {
+            String statusStr = body.get("status");
+            if (statusStr == null || statusStr.isBlank()) {
+                return ResponseEntity.badRequest().body(Collections.singletonMap("error", "Status is required"));
+            }
+            com.ecommerce.model.OrderStatus status = com.ecommerce.model.OrderStatus.valueOf(statusStr.toUpperCase());
+            OrderResponse updated = orderService.updateOrderStatus(orderNumber, status);
+            return ResponseEntity.ok(updated);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Collections.singletonMap("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/stats/dashboard")
+    public ResponseEntity<Map<String, Object>> getDashboardStats() {
+        return ResponseEntity.ok(orderService.getDashboardStats());
+    }
 }

@@ -17,7 +17,9 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -111,6 +113,40 @@ public class OrderService {
     public Optional<OrderResponse> getOrderByNumber(String orderNumber) {
         return orderRepository.findByOrderNumber(orderNumber)
                 .map(OrderResponse::new);
+    }
+
+    public OrderResponse updateOrderStatus(String orderNumber, OrderStatus status) {
+        Order order = orderRepository.findByOrderNumber(orderNumber)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found with number: " + orderNumber));
+        order.setStatus(status);
+        Order updated = orderRepository.save(order);
+        return new OrderResponse(updated);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> getDashboardStats() {
+        List<Order> orders = orderRepository.findAll();
+        BigDecimal totalRevenue = orders.stream()
+                .filter(o -> o.getStatus() != OrderStatus.CANCELLED)
+                .map(Order::getTotalAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        List<Product> products = productRepository.findAll();
+        long lowStockCount = products.stream()
+                .filter(p -> p.getStockQuantity() != null && p.getStockQuantity() < 10)
+                .count();
+
+        long pendingOrdersCount = orders.stream()
+                .filter(o -> o.getStatus() == OrderStatus.PENDING || o.getStatus() == OrderStatus.CONFIRMED || o.getStatus() == OrderStatus.PROCESSING)
+                .count();
+
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("totalRevenue", totalRevenue);
+        stats.put("totalOrders", orders.size());
+        stats.put("totalProducts", products.size());
+        stats.put("lowStockCount", lowStockCount);
+        stats.put("pendingOrdersCount", pendingOrdersCount);
+        return stats;
     }
 
     @Transactional(readOnly = true)
