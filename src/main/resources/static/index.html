@@ -131,9 +131,10 @@
 
                     <!-- Admin Mode Quick Action -->
                     <div id="adminHeaderActions" class="hidden items-center gap-3">
-                        <a href="/h2-console" target="_blank" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center gap-1.5 border border-slate-300">
-                            <i class="fa-solid fa-database text-xs text-brand-600"></i>
-                            <span class="hidden sm:inline">H2 DB Console</span>
+                        <a href="/database.html" target="_blank" class="px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition flex items-center gap-1.5 border border-indigo-200 shadow-sm" title="Open PostgreSQL Database Inspector & Statistics">
+                            <i class="fa-solid fa-database text-xs text-indigo-600"></i>
+                            <span>Database</span>
+                            <span class="px-1.5 py-0.2 rounded bg-indigo-200 text-indigo-800 text-[10px] font-semibold hidden sm:inline">Stats</span>
                         </a>
                         <button onclick="openAddCategoryModal()" class="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition flex items-center gap-2">
                             <i class="fa-solid fa-folder-plus"></i>
@@ -382,16 +383,16 @@
                     <i class="fa-solid fa-shield-halved"></i> Master Administrator Console
                 </div>
                 <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900">Admin Control & Operations</h1>
-                <p class="text-sm text-slate-500 mt-1">Review live financial metrics, update order fulfillment status, manage categories, and inspect H2 database.</p>
+                <p class="text-sm text-slate-500 mt-1">Review live financial metrics, update order fulfillment status, manage categories, and inspect PostgreSQL database statistics.</p>
             </div>
             <div class="flex items-center gap-3">
                 <button onclick="refreshAdminData()" class="px-4 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition flex items-center gap-2">
                     <i class="fa-solid fa-arrows-rotate"></i>
                     <span>Refresh Data</span>
                 </button>
-                <a href="/h2-console" target="_blank" class="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs transition flex items-center gap-2 shadow-sm">
+                <a href="/database.html" target="_blank" class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition flex items-center gap-2 shadow-sm" title="Open PostgreSQL Table Statistics & Query Console">
                     <i class="fa-solid fa-database"></i>
-                    <span>Open H2 SQL Console</span>
+                    <span>Database Console</span>
                 </a>
             </div>
         </div>
@@ -500,20 +501,20 @@
                     </ul>
                 </div>
                 <div>
-                    <h5 class="text-xs font-bold uppercase tracking-wider text-white mb-3">Developer & API</h5>
+                    <h5 class="text-xs font-bold uppercase tracking-wider text-white mb-3">Developer & Database</h5>
                     <ul class="space-y-2 text-xs">
                         <li><a href="/api/products" target="_blank" class="hover:text-white transition">Products API (<code class="text-brand-400">/api/products</code>)</a></li>
                         <li><a href="/api/orders" target="_blank" class="hover:text-white transition">Orders API (<code class="text-brand-400">/api/orders</code>)</a></li>
                         <li><a href="/api/orders/stats/dashboard" target="_blank" class="hover:text-white transition">Dashboard Stats API</a></li>
-                        <li><a href="/h2-console" target="_blank" class="hover:text-white transition">H2 In-Memory DB Console</a></li>
+                        <li><a href="/database.html" target="_blank" class="hover:text-white transition text-indigo-300 font-semibold"><i class="fa-solid fa-database text-xs mr-1 text-indigo-400"></i> Database Console & Stats</a></li>
                     </ul>
                 </div>
                 <div>
-                    <h5 class="text-xs font-bold uppercase tracking-wider text-white mb-3">System Info</h5>
-                    <p class="text-xs text-slate-400 mb-2">Java 24 & Spring Boot 3.4.2</p>
+                    <h5 class="text-xs font-bold uppercase tracking-wider text-white mb-3">System & Database</h5>
+                    <p class="text-xs text-slate-400 mb-2">Java 24 • Spring Boot 3.4.2 • PostgreSQL 18</p>
                     <div class="flex items-center gap-2 text-xs text-emerald-400 font-medium">
                         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                        Backend API Live & Operational
+                        PostgreSQL Database Live & Operational
                     </div>
                 </div>
             </div>
@@ -526,7 +527,7 @@
                     <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-300">Visa / MC</span>
                     <span class="px-2 py-0.5 rounded bg-slate-800 text-amber-300">COD</span>
                 </div>
-                <span class="text-slate-400 font-mono text-[11px]">JDBC: jdbc:h2:mem:ecommercedb</span>
+                <span class="text-slate-400 font-mono text-[11px]">DB: postgresql://localhost:5432/ecommercedb</span>
             </div>
         </div>
     </footer>

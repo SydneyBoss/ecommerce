@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PostgreSQL Database Console & Table Statistics | NOVA Store</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            200: '#c7d2fe',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#312e81',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="bg-slate-900 text-slate-100 antialiased min-h-screen flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+
+    <!-- Top PostgreSQL Console Header -->
+    <header class="bg-slate-950/90 backdrop-blur-md border-b border-slate-800 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <a href="/#admin" class="flex items-center gap-2.5 text-white hover:text-indigo-400 transition group">
+                    <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-400 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30">
+                        <i class="fa-solid fa-database text-sm"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="font-extrabold text-base tracking-tight text-white group-hover:text-indigo-300 transition">NOVA DB</span>
+                            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">PostgreSQL</span>
+                        </div>
+                        <p class="text-[11px] text-slate-400">Database Inspector & Table Statistics</p>
+                    </div>
+                </a>
+            </div>
+
+            <!-- Server Status & Actions -->
+            <div class="flex items-center gap-3 flex-wrap">
+                <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                    <span id="headerStatusText">PostgreSQL Online</span>
+                </div>
+
+                <button onclick="loadAllDatabaseData()" id="refreshBtn" class="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-arrows-rotate" id="refreshIcon"></i>
+                    <span>Refresh</span>
+                </button>
+
+                <a href="/#admin" class="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    <span>Back to Admin</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-8">
+
+        <!-- Hero & Connection Overview Card -->
+        <div class="bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950/60 rounded-2xl border border-slate-800 p-6 shadow-xl relative overflow-hidden">
+            <div class="absolute -right-12 -top-12 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+            
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+                <div class="space-y-2">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-900/60 border border-indigo-700/50 text-indigo-300 text-xs font-medium">
+                        <i class="fa-solid fa-server text-indigo-400"></i>
+                        <span>Live Database Node</span>
+                        <span class="text-slate-400">•</span>
+                        <span id="heroDbHost" class="font-mono text-indigo-200">localhost:5432</span>
+                    </div>
+                    <h1 class="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-3">
+                        <span>Database:</span>
+                        <span id="heroDbName" class="text-indigo-400 font-mono">ecommercedb</span>
+                    </h1>
+                    <p id="heroDbVersion" class="text-xs sm:text-sm text-slate-400 font-mono">
+                        Connecting to PostgreSQL...
+                    </p>
+                </div>
+
+                <div class="flex items-center gap-2 flex-wrap">
+                    <button onclick="scrollToSection('tablesSection')" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition flex items-center gap-2 border border-slate-700">
+                        <i class="fa-solid fa-table"></i>
+                        <span>Table Statistics</span>
+                    </button>
+                    <button onclick="scrollToSection('querySection')" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-indigo-600/30">
+                        <i class="fa-solid fa-terminal"></i>
+                        <span>Run SQL Query</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick Metrics Grid -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-6 pt-6 border-t border-slate-800/80">
+                <div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-xl">
+                    <span class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Engine</span>
+                    <h4 id="kpiEngine" class="text-sm font-bold text-white mt-1">PostgreSQL</h4>
+                    <span id="kpiDriver" class="text-[10px] text-indigo-400 truncate block mt-0.5">Driver 42.7.5</span>
+                </div>
+                <div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-xl">
+                    <span class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Total Tables</span>
+                    <h4 id="kpiTableCount" class="text-lg font-black text-indigo-300 mt-0.5">4</h4>
+                    <span class="text-[10px] text-slate-500">public schema</span>
+                </div>
+                <div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-xl">
+                    <span class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Total Rows</span>
+                    <h4 id="kpiTotalRows" class="text-lg font-black text-emerald-400 mt-0.5">-</h4>
+                    <span class="text-[10px] text-emerald-500/80">Persisted Records</span>
+                </div>
+                <div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-xl">
+                    <span class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Database Size</span>
+                    <h4 id="kpiDbSize" class="text-lg font-black text-amber-300 mt-0.5">-</h4>
+                    <span class="text-[10px] text-slate-500">Total Disk Usage</span>
+                </div>
+                <div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-xl">
+                    <span class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Active Conns</span>
+                    <h4 id="kpiConnections" class="text-lg font-black text-cyan-400 mt-0.5">-</h4>
+                    <span class="text-[10px] text-slate-500">Hikari Connection Pool</span>
+                </div>
+                <div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-xl">
+                    <span class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Health</span>
+                    <h4 id="kpiHealth" class="text-sm font-bold text-emerald-400 mt-1 flex items-center gap-1.5">
+                        <i class="fa-solid fa-circle-check"></i> Healthy
+                    </h4>
+                    <span id="kpiTimestamp" class="text-[10px] text-slate-500 truncate block mt-0.5">-</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECTION 1: ALL TABLES STATISTICS -->
+        <section id="tablesSection" class="bg-slate-950 rounded-2xl border border-slate-800 shadow-xl overflow-hidden">
+            <div class="p-6 border-b border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold text-xs border border-indigo-500/20">
+                            <i class="fa-solid fa-table-cells"></i>
+                        </div>
+                        <h2 class="text-xl font-extrabold text-white">Database Tables & Storage Statistics</h2>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-1">Live row counts, column counts, disk storage (table data + indexes), and primary key mappings.</p>
+                </div>
+
+                <!-- Table Filter Search -->
+                <div class="relative w-full sm:w-64">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                    <input type="text" id="tableSearchInput" oninput="filterTablesList()" placeholder="Filter tables..." class="w-full bg-slate-900 text-slate-200 text-xs pl-9 pr-3.5 py-2 rounded-xl border border-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition">
+                </div>
+            </div>
+
+            <!-- Tables Grid / Table -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead>
+                        <tr class="bg-slate-900/90 text-slate-400 border-b border-slate-800 font-semibold uppercase text-[11px] tracking-wider">
+                            <th class="py-3.5 px-6">Table Name</th>
+                            <th class="py-3.5 px-4 text-center">Row Count</th>
+                            <th class="py-3.5 px-4 text-center">Columns</th>
+                            <th class="py-3.5 px-4">Primary Key</th>
+                            <th class="py-3.5 px-4">Table Size</th>
+                            <th class="py-3.5 px-4">Index Size</th>
+                            <th class="py-3.5 px-4">Total Disk Size</th>
+                            <th class="py-3.5 px-6 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablesStatsTbody" class="divide-y divide-slate-800/80 font-mono">
+                        <tr>
+                            <td colspan="8" class="py-12 text-center text-slate-500">
+                                <i class="fa-solid fa-spinner fa-spin text-indigo-400 text-xl mb-2"></i>
+                                <p class="text-xs font-sans">Querying PostgreSQL catalogs...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="p-4 bg-slate-900/50 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400 font-sans">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-circle-info text-indigo-400"></i>
+                    <span>Storage computed via <code class="text-indigo-300">pg_total_relation_size()</code> and <code class="text-indigo-300">pg_relation_size()</code></span>
+                </div>
+                <div class="text-[11px] text-slate-500">
+                    Schema: <span class="font-mono text-slate-300">public</span> • PostgreSQL 18
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 2: LIVE TABLE DATA BROWSER -->
+        <section id="browserSection" class="bg-slate-950 rounded-2xl border border-slate-800 shadow-xl overflow-hidden">
+            <div class="p-6 border-b border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold text-xs border border-emerald-500/20">
+                        <i class="fa-solid fa-list"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-xl font-extrabold text-white">Live Table Records Browser</h2>
+                            <span id="activeBrowsingTableBadge" class="px-2.5 py-0.5 rounded-md text-xs font-bold font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">products</span>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-1">Browse and inspect live records stored in PostgreSQL tables.</p>
+                    </div>
+                </div>
+
+                <!-- Table Selector & Pagination Controls -->
+                <div class="flex items-center gap-3 flex-wrap">
+                    <div class="flex items-center gap-2">
+                        <label for="tableSelector" class="text-xs text-slate-400">Select Table:</label>
+                        <select id="tableSelector" onchange="onTableSelectChange()" class="bg-slate-900 text-white text-xs px-3 py-2 rounded-xl border border-slate-800 focus:outline-none focus:border-indigo-500 font-mono">
+                            <option value="products">products</option>
+                            <option value="categories">categories</option>
+                            <option value="orders">orders</option>
+                            <option value="order_items">order_items</option>
+                        </select>
+                    </div>
+
+                    <button onclick="loadTableData(currentSelectedTable, currentOffset)" class="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs" title="Refresh Table Data">
+                        <i class="fa-solid fa-arrows-rotate"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Table Data View -->
+            <div id="tableDataContainer" class="overflow-x-auto min-h-[220px]">
+                <div class="py-16 text-center text-slate-500">
+                    <i class="fa-solid fa-spinner fa-spin text-emerald-400 text-2xl mb-2"></i>
+                    <p class="text-xs">Loading table records...</p>
+                </div>
+            </div>
+
+            <!-- Pagination Toolbar -->
+            <div class="p-4 bg-slate-900/50 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400 font-sans">
+                <div id="paginationInfo" class="font-mono text-slate-300">
+                    Showing records 0 - 0 of 0
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="prevPageBtn" onclick="prevPage()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1">
+                        <i class="fa-solid fa-chevron-left text-[10px]"></i> Previous
+                    </button>
+                    <button id="nextPageBtn" onclick="nextPage()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1">
+                        Next <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 3: INTERACTIVE READ-ONLY SQL QUERY RUNNER -->
+        <section id="querySection" class="bg-slate-950 rounded-2xl border border-slate-800 shadow-xl overflow-hidden">
+            <div class="p-6 border-b border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center font-bold text-xs border border-purple-500/20">
+                        <i class="fa-solid fa-terminal"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-extrabold text-white">Interactive SQL Query Console</h2>
+                        <p class="text-xs text-slate-400 mt-1">Execute live read-only queries (<code class="text-indigo-300">SELECT</code>) against the PostgreSQL database.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-1.5 text-xs text-slate-400">
+                    <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+                    <span>Safe Read-Only Mode (Max 100 Rows)</span>
+                </div>
+            </div>
+
+            <div class="p-6 space-y-4">
+                <!-- Preset Sample Queries -->
+                <div class="flex items-center gap-2 flex-wrap text-xs">
+                    <span class="text-slate-400 font-semibold">Preset Queries:</span>
+                    <button onclick="setQuery('SELECT id, name, price, stock_quantity, rating FROM products ORDER BY stock_quantity ASC LIMIT 10;')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-indigo-300 text-[11px] font-mono transition">
+                        Low Stock Products
+                    </button>
+                    <button onclick="setQuery('SELECT id, order_number, customer_name, total_amount, payment_method, status FROM orders ORDER BY id DESC LIMIT 10;')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-indigo-300 text-[11px] font-mono transition">
+                        Latest Orders
+                    </button>
+                    <button onclick="setQuery('SELECT c.name as category, COUNT(p.id) as product_count, ROUND(AVG(p.price), 2) as avg_price FROM categories c LEFT JOIN products p ON c.id = p.category_id GROUP BY c.id, c.name;')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-indigo-300 text-[11px] font-mono transition">
+                        Products by Category
+                    </button>
+                    <button onclick="setQuery('SELECT payment_method, payment_status, count(*) as count, SUM(total_amount) as total_sales FROM orders GROUP BY payment_method, payment_status;')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-indigo-300 text-[11px] font-mono transition">
+                        Sales by Payment Method
+                    </button>
+                </div>
+
+                <!-- Query Text Area -->
+                <div class="relative">
+                    <textarea id="sqlInput" rows="3" class="w-full bg-slate-900/90 text-indigo-200 font-mono text-xs p-4 rounded-xl border border-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition resize-y shadow-inner" placeholder="Enter your SELECT query here (e.g. SELECT * FROM products LIMIT 5;)"></textarea>
+                </div>
+
+                <!-- Run Button & Stats -->
+                <div class="flex items-center justify-between gap-4 flex-wrap">
+                    <div id="queryDurationBadge" class="hidden text-xs text-slate-400 font-mono">
+                        <i class="fa-regular fa-clock text-indigo-400"></i> <span id="queryDurationText">Executed in 0ms</span>
+                    </div>
+
+                    <button onclick="runSqlQuery()" id="runQueryBtn" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-indigo-600/30">
+                        <i class="fa-solid fa-play"></i>
+                        <span>Execute Query</span>
+                    </button>
+                </div>
+
+                <!-- Query Results Output -->
+                <div id="queryResultArea" class="hidden rounded-xl border border-slate-800 overflow-hidden bg-slate-900">
+                    <div id="queryStatusBanner" class="p-3 text-xs font-semibold flex items-center justify-between border-b border-slate-800">
+                        <span id="queryStatusText">Query Result</span>
+                        <span id="queryRowCountText" class="font-mono text-[11px]"></span>
+                    </div>
+                    <div id="queryResultTableContainer" class="overflow-x-auto max-h-[350px]">
+                        <!-- Dynamic Result Table -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- SCHEMA INSPECTOR MODAL -->
+    <div id="schemaModal" class="fixed inset-0 z-50 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity" onclick="closeSchemaModal()"></div>
+        <div class="flex min-h-full items-center justify-center p-4">
+            <div class="relative bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center text-xs border border-indigo-500/20">
+                            <i class="fa-solid fa-diagram-project"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                                <span>Table Schema:</span>
+                                <span id="schemaModalTableName" class="text-indigo-400 font-mono"></span>
+                            </h3>
+                            <p class="text-xs text-slate-400">PostgreSQL column definitions, types, constraints and defaults.</p>
+                        </div>
+                    </div>
+                    <button onclick="closeSchemaModal()" class="text-slate-400 hover:text-white transition">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto max-h-[400px]">
+                    <table class="w-full text-left text-xs font-mono">
+                        <thead>
+                            <tr class="bg-slate-950 text-slate-400 border-b border-slate-800 uppercase text-[10px]">
+                                <th class="py-2.5 px-3">Column</th>
+                                <th class="py-2.5 px-3">Type</th>
+                                <th class="py-2.5 px-3 text-center">Nullable</th>
+                                <th class="py-2.5 px-3 text-center">Key</th>
+                                <th class="py-2.5 px-3">Default</th>
+                            </tr>
+                        </thead>
+                        <tbody id="schemaModalTbody" class="divide-y divide-slate-800/80">
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="pt-4 border-t border-slate-800 flex justify-end">
+                    <button onclick="closeSchemaModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-slate-950 border-t border-slate-800 py-6 text-center text-xs text-slate-500 font-mono">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <span>NOVA Store India • PostgreSQL 18 Production Engine</span>
+            <span class="text-slate-400">Host: localhost:5432 • Database: ecommercedb</span>
+            <a href="/#admin" class="hover:text-indigo-400 transition">Return to Store</a>
+        </div>
+    </footer>
+
+    <!-- SCRIPT FOR DATABASE CONSOLE -->
+    <script>
+        let cachedOverview = null;
+        let cachedTables = [];
+        let currentSelectedTable = 'products';
+        let currentLimit = 50;
+        let currentOffset = 0;
+        let currentTotalRows = 0;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadAllDatabaseData();
+            // Default query in console
+            document.getElementById('sqlInput').value = 'SELECT id, name, price, stock_quantity, rating FROM products ORDER BY id ASC LIMIT 10;';
+        });
+
+        async function loadAllDatabaseData() {
+            const refreshIcon = document.getElementById('refreshIcon');
+            if (refreshIcon) refreshIcon.classList.add('fa-spin');
+
+            try {
+                await Promise.all([
+                    fetchOverview(),
+                    fetchTables()
+                ]);
+                loadTableData(currentSelectedTable, 0);
+            } catch (err) {
+                console.error('Error fetching database data:', err);
+            } finally {
+                if (refreshIcon) refreshIcon.classList.remove('fa-spin');
+            }
+        }
+
+        async function fetchOverview() {
+            try {
+                const res = await fetch('/api/database/overview');
+                const data = await res.json();
+                cachedOverview = data;
+                renderOverview(data);
+            } catch (err) {
+                document.getElementById('heroDbVersion').innerText = 'Failed to load database overview.';
+            }
+        }
+
+        function renderOverview(data) {
+            document.getElementById('heroDbName').innerText = data.databaseName || 'ecommercedb';
+            document.getElementById('heroDbVersion').innerText = data.fullVersion || data.productVersion || 'PostgreSQL';
+            document.getElementById('heroDbHost').innerText = data.jdbcUrl ? data.jdbcUrl.replace('jdbc:postgresql://', '') : 'localhost:5432';
+
+            document.getElementById('kpiEngine').innerText = data.productName || 'PostgreSQL';
+            document.getElementById('kpiDriver').innerText = `${data.driverName || 'JDBC'} ${data.driverVersion || ''}`;
+            document.getElementById('kpiDbSize').innerText = data.databaseSize || 'N/A';
+            document.getElementById('kpiConnections').innerText = `${data.activeConnections || 1} Active`;
+            document.getElementById('kpiTimestamp').innerText = data.timestamp || '';
+            document.getElementById('headerStatusText').innerText = `${data.productName} Online`;
+        }
+
+        async function fetchTables() {
+            try {
+                const res = await fetch('/api/database/tables');
+                const tables = await res.json();
+                cachedTables = tables;
+                renderTablesList(tables);
+
+                // Update Table selector dropdown
+                const selector = document.getElementById('tableSelector');
+                selector.innerHTML = tables.map(t => `<option value="${t.tableName}" ${t.tableName === currentSelectedTable ? 'selected' : ''}>${t.tableName} (${t.rowCount} rows)</option>`).join('');
+
+                // Update total rows KPI
+                const totalRows = tables.reduce((acc, t) => acc + (Number(t.rowCount) || 0), 0);
+                document.getElementById('kpiTotalRows').innerText = totalRows.toLocaleString();
+                document.getElementById('kpiTableCount').innerText = tables.length;
+            } catch (err) {
+                console.error('Error rendering tables:', err);
+                document.getElementById('tablesStatsTbody').innerHTML = `
+                    <tr><td colspan="8" class="py-8 text-center text-rose-400 font-sans">Failed to load table statistics.</td></tr>
+                `;
+            }
+        }
+
+        function renderTablesList(tables) {
+            const tbody = document.getElementById('tablesStatsTbody');
+            if (!tables || tables.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-slate-500 font-sans">No tables found.</td></tr>`;
+                return;
+            }
+
+            const tableIcons = {
+                products: 'fa-box-archive text-amber-400',
+                categories: 'fa-folder-tree text-indigo-400',
+                orders: 'fa-receipt text-emerald-400',
+                order_items: 'fa-boxes-stacked text-purple-400'
+            };
+
+            tbody.innerHTML = tables.map(t => {
+                const icon = tableIcons[t.tableName] || 'fa-table text-slate-400';
+                const pk = (t.primaryKeys && t.primaryKeys.length > 0) ? t.primaryKeys.join(', ') : 'None';
+
+                return `
+                    <tr class="hover:bg-slate-900/60 transition group">
+                        <td class="py-4 px-6 flex items-center gap-3">
+                            <div class="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center text-xs">
+                                <i class="fa-solid ${icon}"></i>
+                            </div>
+                            <div>
+                                <span class="font-bold text-white group-hover:text-indigo-300 transition text-sm">${t.tableName}</span>
+                                <span class="text-[10px] text-slate-500 block font-sans">public.${t.tableName}</span>
+                            </div>
+                        </td>
+                        <td class="py-4 px-4 text-center">
+                            <span class="px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-400 text-xs font-bold border border-emerald-500/20">
+                                ${(Number(t.rowCount) || 0).toLocaleString()}
+                            </span>
+                        </td>
+                        <td class="py-4 px-4 text-center text-slate-300">
+                            ${t.columnCount || (t.columns ? t.columns.length : 0)}
+                        </td>
+                        <td class="py-4 px-4 text-indigo-300">
+                            <span class="inline-flex items-center gap-1">
+                                <i class="fa-solid fa-key text-[10px] text-amber-400"></i> ${pk}
+                            </span>
+                        </td>
+                        <td class="py-4 px-4 text-slate-300">${t.tableSize || '-'}</td>
+                        <td class="py-4 px-4 text-slate-400">${t.indexSize || '-'}</td>
+                        <td class="py-4 px-4 text-indigo-400 font-bold">${t.totalSize || '-'}</td>
+                        <td class="py-4 px-6 text-right space-x-2 font-sans">
+                            <button onclick="browseSpecificTable('${t.tableName}')" class="px-2.5 py-1 rounded-lg bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white text-xs font-semibold border border-indigo-500/30 transition">
+                                <i class="fa-solid fa-eye text-[11px]"></i> Browse
+                            </button>
+                            <button onclick="inspectSchema('${t.tableName}')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition">
+                                <i class="fa-solid fa-code text-[11px]"></i> Schema
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function filterTablesList() {
+            const query = (document.getElementById('tableSearchInput')?.value || '').toLowerCase().trim();
+            if (!query) {
+                renderTablesList(cachedTables);
+                return;
+            }
+            const filtered = cachedTables.filter(t => t.tableName.toLowerCase().includes(query));
+            renderTablesList(filtered);
+        }
+
+        function browseSpecificTable(tableName) {
+            currentSelectedTable = tableName;
+            const selector = document.getElementById('tableSelector');
+            if (selector) selector.value = tableName;
+            currentOffset = 0;
+            loadTableData(tableName, 0);
+            scrollToSection('browserSection');
+        }
+
+        function onTableSelectChange() {
+            const sel = document.getElementById('tableSelector');
+            currentSelectedTable = sel.value;
+            currentOffset = 0;
+            loadTableData(currentSelectedTable, 0);
+        }
+
+        async function loadTableData(tableName, offset = 0) {
+            const container = document.getElementById('tableDataContainer');
+            const badge = document.getElementById('activeBrowsingTableBadge');
+            if (badge) badge.innerText = tableName;
+
+            container.innerHTML = `
+                <div class="py-16 text-center text-slate-500">
+                    <i class="fa-solid fa-spinner fa-spin text-indigo-400 text-2xl mb-2"></i>
+                    <p class="text-xs">Fetching records from ${tableName}...</p>
+                </div>
+            `;
+
+            try {
+                const res = await fetch(`/api/database/tables/${tableName}/data?limit=${currentLimit}&offset=${offset}`);
+                const data = await res.json();
+
+                if (data.error) {
+                    container.innerHTML = `<div class="p-8 text-center text-rose-400 text-xs">${data.error}</div>`;
+                    return;
+                }
+
+                currentOffset = offset;
+                currentTotalRows = data.totalRows || 0;
+                renderTableBrowser(data);
+                updatePaginationControls();
+            } catch (err) {
+                container.innerHTML = `<div class="p-8 text-center text-rose-400 text-xs">Failed to load table records.</div>`;
+            }
+        }
+
+        function renderTableBrowser(data) {
+            const container = document.getElementById('tableDataContainer');
+            if (!data.rows || data.rows.length === 0) {
+                container.innerHTML = `<div class="p-12 text-center text-slate-500 text-xs">Table <span class="font-mono text-indigo-300">${data.tableName}</span> has 0 records.</div>`;
+                return;
+            }
+
+            const columns = data.columns || Object.keys(data.rows[0]);
+
+            let html = `
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead>
+                        <tr class="bg-slate-900 text-slate-400 border-b border-slate-800 font-semibold uppercase text-[10px] tracking-wider">
+                            ${columns.map(c => `<th class="py-3 px-4 font-mono">${c}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/60 font-mono">
+            `;
+
+            data.rows.forEach(row => {
+                html += `<tr class="hover:bg-slate-900/50 transition">`;
+                columns.forEach(col => {
+                    let val = row[col];
+                    let formatted = formatCellValue(col, val);
+                    html += `<td class="py-3 px-4 text-slate-300 max-w-xs truncate">${formatted}</td>`;
+                });
+                html += `</tr>`;
+            });
+
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+        }
+
+        function formatCellValue(col, val) {
+            if (val === null || val === undefined) {
+                return '<span class="text-slate-600 italic">null</span>';
+            }
+            if (typeof val === 'boolean') {
+                return val 
+                    ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-300 font-bold">true</span>'
+                    : '<span class="px-1.5 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400 font-bold">false</span>';
+            }
+            if (col.toLowerCase().includes('status')) {
+                const s = String(val).toUpperCase();
+                let color = 'bg-slate-800 text-slate-300';
+                if (s === 'CONFIRMED' || s === 'DELIVERED' || s === 'SUCCESS') color = 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+                if (s === 'PENDING' || s === 'PROCESSING') color = 'bg-amber-500/20 text-amber-300 border border-amber-500/30';
+                if (s === 'CANCELLED' || s === 'FAILED') color = 'bg-rose-500/20 text-rose-300 border border-rose-500/30';
+                return `<span class="px-2 py-0.5 rounded text-[10px] font-bold ${color}">${val}</span>`;
+            }
+            if (col.toLowerCase().includes('price') || col.toLowerCase().includes('amount') || col.toLowerCase().includes('subtotal') || col.toLowerCase().includes('fee')) {
+                return `<span class="text-emerald-400 font-semibold">₹${Number(val).toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>`;
+            }
+            if (col.toLowerCase().includes('image_url') && String(val).startsWith('http')) {
+                return `<a href="${val}" target="_blank" class="text-indigo-400 hover:underline flex items-center gap-1 truncate"><i class="fa-solid fa-image text-[10px]"></i> ${escapeHtml(String(val))}</a>`;
+            }
+            return escapeHtml(String(val));
+        }
+
+        function updatePaginationControls() {
+            const info = document.getElementById('paginationInfo');
+            const start = currentTotalRows === 0 ? 0 : currentOffset + 1;
+            const end = Math.min(currentOffset + currentLimit, currentTotalRows);
+            info.innerText = `Showing records ${start} - ${end} of ${currentTotalRows.toLocaleString()}`;
+
+            const prev = document.getElementById('prevPageBtn');
+            const next = document.getElementById('nextPageBtn');
+
+            if (prev) prev.disabled = currentOffset <= 0;
+            if (next) next.disabled = (currentOffset + currentLimit) >= currentTotalRows;
+        }
+
+        function prevPage() {
+            if (currentOffset > 0) {
+                const newOffset = Math.max(0, currentOffset - currentLimit);
+                loadTableData(currentSelectedTable, newOffset);
+            }
+        }
+
+        function nextPage() {
+            if ((currentOffset + currentLimit) < currentTotalRows) {
+                const newOffset = currentOffset + currentLimit;
+                loadTableData(currentSelectedTable, newOffset);
+            }
+        }
+
+        function inspectSchema(tableName) {
+            const table = cachedTables.find(t => t.tableName === tableName);
+            if (!table) return;
+
+            document.getElementById('schemaModalTableName').innerText = tableName;
+            const tbody = document.getElementById('schemaModalTbody');
+
+            if (!table.columns || table.columns.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="py-4 text-center text-slate-500">No column data available.</td></tr>`;
+            } else {
+                tbody.innerHTML = table.columns.map(col => `
+                    <tr class="hover:bg-slate-950/50">
+                        <td class="py-2.5 px-3 font-bold text-white">${col.name}</td>
+                        <td class="py-2.5 px-3 text-indigo-300">${col.type}</td>
+                        <td class="py-2.5 px-3 text-center">
+                            ${col.nullable ? '<span class="text-slate-400">YES</span>' : '<span class="text-amber-400 font-bold">NO</span>'}
+                        </td>
+                        <td class="py-2.5 px-3 text-center">
+                            ${col.isPrimaryKey ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">PK</span>' : '-'}
+                        </td>
+                        <td class="py-2.5 px-3 text-slate-400">${col.defaultValue || '<span class="text-slate-600">-</span>'}</td>
+                    </tr>
+                `).join('');
+            }
+
+            document.getElementById('schemaModal').classList.remove('hidden');
+        }
+
+        function closeSchemaModal() {
+            document.getElementById('schemaModal').classList.add('hidden');
+        }
+
+        function setQuery(sql) {
+            const input = document.getElementById('sqlInput');
+            input.value = sql;
+            runSqlQuery();
+        }
+
+        async function runSqlQuery() {
+            const input = document.getElementById('sqlInput');
+            const query = input.value.trim();
+            if (!query) return;
+
+            const btn = document.getElementById('runQueryBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Running...</span>`;
+            btn.disabled = true;
+
+            const resultArea = document.getElementById('queryResultArea');
+            const banner = document.getElementById('queryStatusBanner');
+            const statusText = document.getElementById('queryStatusText');
+            const rowCountText = document.getElementById('queryRowCountText');
+            const tableContainer = document.getElementById('queryResultTableContainer');
+            const durationBadge = document.getElementById('queryDurationBadge');
+            const durationText = document.getElementById('queryDurationText');
+
+            try {
+                const res = await fetch('/api/database/query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query })
+                });
+                const data = await res.json();
+
+                resultArea.classList.remove('hidden');
+
+                if (data.success) {
+                    banner.className = 'p-3 text-xs font-semibold flex items-center justify-between border-b border-slate-800 bg-emerald-950/40 text-emerald-300';
+                    statusText.innerHTML = `<i class="fa-solid fa-check text-emerald-400 mr-1.5"></i> Query Executed Successfully`;
+                    rowCountText.innerText = `${data.rowCount} rows returned`;
+
+                    durationBadge.classList.remove('hidden');
+                    durationText.innerText = `Executed in ${data.executionTimeMs}ms`;
+
+                    if (!data.rows || data.rows.length === 0) {
+                        tableContainer.innerHTML = `<div class="p-8 text-center text-slate-400 text-xs">Query returned 0 rows.</div>`;
+                    } else {
+                        const cols = data.columns;
+                        let tbl = `
+                            <table class="w-full text-left text-xs border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-950 text-slate-400 border-b border-slate-800 font-semibold uppercase text-[10px] tracking-wider">
+                                        ${cols.map(c => `<th class="py-2.5 px-3 font-mono">${c}</th>`).join('')}
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-800/60 font-mono">
+                        `;
+                        data.rows.forEach(r => {
+                            tbl += `<tr class="hover:bg-slate-950/50">`;
+                            cols.forEach(c => {
+                                tbl += `<td class="py-2 px-3 text-slate-300 max-w-xs truncate">${formatCellValue(c, r[c])}</td>`;
+                            });
+                            tbl += `</tr>`;
+                        });
+                        tbl += `</tbody></table>`;
+                        tableContainer.innerHTML = tbl;
+                    }
+                } else {
+                    banner.className = 'p-3 text-xs font-semibold flex items-center justify-between border-b border-slate-800 bg-rose-950/40 text-rose-300';
+                    statusText.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-rose-400 mr-1.5"></i> Execution Error`;
+                    rowCountText.innerText = `Failed`;
+                    durationBadge.classList.remove('hidden');
+                    durationText.innerText = `Finished in ${data.executionTimeMs}ms`;
+                    tableContainer.innerHTML = `<div class="p-6 text-rose-400 font-mono text-xs">${escapeHtml(data.error || 'Failed to execute query')}</div>`;
+                }
+
+            } catch (err) {
+                resultArea.classList.remove('hidden');
+                banner.className = 'p-3 text-xs font-semibold flex items-center justify-between border-b border-slate-800 bg-rose-950/40 text-rose-300';
+                statusText.innerHTML = `Network Error`;
+                tableContainer.innerHTML = `<div class="p-6 text-rose-400 text-xs">Unable to communicate with the database endpoint.</div>`;
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        function scrollToSection(id) {
+            const el = document.getElementById(id);
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+    </script>
+</body>
+</html>
