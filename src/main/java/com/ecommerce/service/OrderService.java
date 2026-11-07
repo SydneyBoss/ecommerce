@@ -7,8 +7,10 @@ import com.ecommerce.model.Order;
 import com.ecommerce.model.OrderItem;
 import com.ecommerce.model.OrderStatus;
 import com.ecommerce.model.Product;
+import com.ecommerce.model.User;
 import com.ecommerce.repository.OrderRepository;
 import com.ecommerce.repository.ProductRepository;
+import com.ecommerce.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,11 +32,18 @@ public class OrderService {
 
     private final OrderRepository orderRepository;
     private final ProductRepository productRepository;
+    private final UserRepository userRepository;
+    private final AuthService authService;
 
     @Autowired
-    public OrderService(OrderRepository orderRepository, ProductRepository productRepository) {
+    public OrderService(OrderRepository orderRepository,
+                        ProductRepository productRepository,
+                        UserRepository userRepository,
+                        AuthService authService) {
         this.orderRepository = orderRepository;
         this.productRepository = productRepository;
+        this.userRepository = userRepository;
+        this.authService = authService;
     }
 
     public OrderResponse createOrder(OrderRequest request) {
@@ -44,6 +53,16 @@ public class OrderService {
 
         Order order = new Order();
         order.setOrderNumber(generateOrderNumber());
+
+        // Associate with buyer user if authenticated or matched by email
+        Optional<User> currentUser = authService.getCurrentAuthenticatedUser();
+        if (currentUser.isPresent()) {
+            order.setUser(currentUser.get());
+        } else if (request.getCustomerEmail() != null && !request.getCustomerEmail().isBlank()) {
+            userRepository.findByEmail(request.getCustomerEmail().trim().toLowerCase())
+                    .ifPresent(order::setUser);
+        }
+
         order.setCustomerName(request.getCustomerName());
         order.setCustomerEmail(request.getCustomerEmail());
         order.setCustomerPhone(request.getCustomerPhone());
@@ -90,6 +109,8 @@ public class OrderService {
                     product.getPrice(),
                     itemReq.getQuantity()
             );
+            // Link item to product's seller
+            orderItem.setSeller(product.getSeller());
             order.addItem(orderItem);
 
             subtotal = subtotal.add(orderItem.getSubtotal());
@@ -123,9 +144,23 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
+    public List<OrderResponse> getUserOrders(Long userId) {
+        return orderRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
+                .map(OrderResponse::new)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
     public Optional<OrderResponse> getOrderByNumber(String orderNumber) {
         return orderRepository.findByOrderNumber(orderNumber)
                 .map(OrderResponse::new);
+    }
+
+    @Transactional(readOnly = true)
+    public List<OrderResponse> getOrdersByCustomerEmail(String email) {
+        return orderRepository.findByCustomerEmailOrderByCreatedAtDesc(email).stream()
+                .map(OrderResponse::new)
+                .collect(Collectors.toList());
     }
 
     public OrderResponse updateOrderStatus(String orderNumber, OrderStatus status) {
@@ -136,57 +171,64 @@ public class OrderService {
         return new OrderResponse(updated);
     }
 
-    public OrderResponse updatePayment(String orderNumber, String status, String transactionId, String paymentDetails) {
+    public OrderResponse updateOrderStatus(Long orderId, OrderStatus status) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found with id: " + orderId));
+        order.setStatus(status);
+        Order updated = orderRepository.save(order);
+        return new OrderResponse(updated);
+    }
+
+    public OrderResponse updatePaymentStatus(String orderNumber, String paymentStatus, String transactionId, String paymentDetails) {
         Order order = orderRepository.findByOrderNumber(orderNumber)
                 .orElseThrow(() -> new IllegalArgumentException("Order not found with number: " + orderNumber));
-        if (status != null && !status.isBlank()) {
-            order.setPaymentStatus(status);
-        }
-        if (transactionId != null && !transactionId.isBlank()) {
+        order.setPaymentStatus(paymentStatus);
+        if (transactionId != null) {
             order.setPaymentTransactionId(transactionId);
         }
-        if (paymentDetails != null && !paymentDetails.isBlank()) {
+        if (paymentDetails != null) {
             order.setPaymentDetails(paymentDetails);
         }
         Order updated = orderRepository.save(order);
         return new OrderResponse(updated);
     }
 
+    public OrderResponse updatePayment(String orderNumber, String paymentStatus, String transactionId, String paymentDetails) {
+        return updatePaymentStatus(orderNumber, paymentStatus, transactionId, paymentDetails);
+    }
+
+    private String generateOrderNumber() {
+        String datePart = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        String uniquePart = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
+        return "ORD-" + datePart + "-" + uniquePart;
+    }
+
     @Transactional(readOnly = true)
     public Map<String, Object> getDashboardStats() {
         List<Order> orders = orderRepository.findAll();
+
+        long totalOrders = orders.size();
         BigDecimal totalRevenue = orders.stream()
                 .filter(o -> o.getStatus() != OrderStatus.CANCELLED)
                 .map(Order::getTotalAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        List<Product> products = productRepository.findAll();
-        long lowStockCount = products.stream()
-                .filter(p -> p.getStockQuantity() != null && p.getStockQuantity() < 10)
+        long pendingOrders = orders.stream()
+                .filter(o -> o.getStatus() == OrderStatus.PENDING ||
+                             o.getStatus() == OrderStatus.CONFIRMED ||
+                             o.getStatus() == OrderStatus.PROCESSING)
                 .count();
 
-        long pendingOrdersCount = orders.stream()
-                .filter(o -> o.getStatus() == OrderStatus.PENDING || o.getStatus() == OrderStatus.CONFIRMED || o.getStatus() == OrderStatus.PROCESSING)
+        long deliveredOrders = orders.stream()
+                .filter(o -> o.getStatus() == OrderStatus.DELIVERED)
                 .count();
 
         Map<String, Object> stats = new HashMap<>();
+        stats.put("totalOrders", totalOrders);
         stats.put("totalRevenue", totalRevenue);
-        stats.put("totalOrders", orders.size());
-        stats.put("totalProducts", products.size());
-        stats.put("lowStockCount", lowStockCount);
-        stats.put("pendingOrdersCount", pendingOrdersCount);
+        stats.put("pendingOrders", pendingOrders);
+        stats.put("deliveredOrders", deliveredOrders);
+
         return stats;
-    }
-
-    @Transactional(readOnly = true)
-    public Optional<OrderResponse> getOrderById(Long id) {
-        return orderRepository.findById(id)
-                .map(OrderResponse::new);
-    }
-
-    private String generateOrderNumber() {
-        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        String randomSuffix = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
-        return "ORD-" + timestamp + "-" + randomSuffix;
     }
 }

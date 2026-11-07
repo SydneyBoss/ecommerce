@@ -1,6 +1,7 @@
 package com.ecommerce.service;
 
 import com.ecommerce.model.Product;
+import com.ecommerce.model.User;
 import com.ecommerce.repository.ProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -14,10 +15,12 @@ import java.util.Optional;
 public class ProductService {
 
     private final ProductRepository productRepository;
+    private final AuthService authService;
 
     @Autowired
-    public ProductService(ProductRepository productRepository) {
+    public ProductService(ProductRepository productRepository, AuthService authService) {
         this.productRepository = productRepository;
+        this.authService = authService;
     }
 
     public List<Product> getAllProducts() {
@@ -36,6 +39,10 @@ public class ProductService {
         return productRepository.findByCategorySlug(categorySlug);
     }
 
+    public List<Product> getProductsBySellerId(Long sellerId) {
+        return productRepository.findBySellerId(sellerId);
+    }
+
     public List<Product> searchProducts(String query) {
         if (query == null || query.trim().isEmpty()) {
             return getAllProducts();
@@ -51,6 +58,9 @@ public class ProductService {
 
     @Transactional
     public Product saveProduct(Product product) {
+        if (product.getSeller() == null) {
+            authService.getCurrentAuthenticatedUser().ifPresent(product::setSeller);
+        }
         return productRepository.save(product);
     }
 
@@ -58,35 +68,28 @@ public class ProductService {
     public Product updateProduct(Long id, Product details) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Product not found with id: " + id));
-        if (details.getName() != null && !details.getName().isBlank()) {
-            product.setName(details.getName());
+
+        product.setName(details.getName());
+        product.setDescription(details.getDescription());
+        product.setPrice(details.getPrice());
+        product.setOriginalPrice(details.getOriginalPrice());
+        product.setImageUrl(details.getImageUrl());
+        product.setStockQuantity(details.getStockQuantity());
+        product.setCategory(details.getCategory());
+        if (details.getBadge() != null) product.setBadge(details.getBadge());
+        product.setFeatured(details.isFeatured());
+        if (details.getSeller() != null) {
+            product.setSeller(details.getSeller());
         }
-        if (details.getDescription() != null) {
-            product.setDescription(details.getDescription());
-        }
-        if (details.getPrice() != null) {
-            product.setPrice(details.getPrice());
-        }
-        if (details.getOriginalPrice() != null) {
-            product.setOriginalPrice(details.getOriginalPrice());
-        }
-        if (details.getStockQuantity() != null) {
-            product.setStockQuantity(details.getStockQuantity());
-        }
-        if (details.getImageUrl() != null && !details.getImageUrl().isBlank()) {
-            product.setImageUrl(details.getImageUrl());
-        }
-        if (details.getBadge() != null) {
-            product.setBadge(details.getBadge().isBlank() ? null : details.getBadge());
-        }
-        if (details.getCategory() != null) {
-            product.setCategory(details.getCategory());
-        }
+
         return productRepository.save(product);
     }
 
     @Transactional
     public void deleteProduct(Long id) {
+        if (!productRepository.existsById(id)) {
+            throw new IllegalArgumentException("Product not found with id: " + id);
+        }
         productRepository.deleteById(id);
     }
 }

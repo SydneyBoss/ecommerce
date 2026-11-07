@@ -392,6 +392,18 @@
         let currentOffset = 0;
         let currentTotalRows = 0;
 
+        function dbFetch(url, options = {}) {
+            options.headers = options.headers || {};
+            const token = localStorage.getItem('nova_auth_token');
+            if (token) {
+                options.headers['Authorization'] = `Bearer ${token}`;
+            }
+            if (!options.headers['Content-Type'] && !(options.body instanceof FormData)) {
+                options.headers['Content-Type'] = 'application/json';
+            }
+            return fetch(url, options);
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             loadAllDatabaseData();
             // Default query in console
@@ -417,7 +429,7 @@
 
         async function fetchOverview() {
             try {
-                const res = await fetch('/api/database/overview');
+                const res = await dbFetch('/api/database/overview');
                 const data = await res.json();
                 cachedOverview = data;
                 renderOverview(data);
@@ -441,7 +453,7 @@
 
         async function fetchTables() {
             try {
-                const res = await fetch('/api/database/tables');
+                const res = await dbFetch('/api/database/tables');
                 const tables = await res.json();
                 cachedTables = tables;
                 renderTablesList(tables);
@@ -559,7 +571,7 @@
             `;
 
             try {
-                const res = await fetch(`/api/database/tables/${tableName}/data?limit=${currentLimit}&offset=${offset}`);
+                const res = await dbFetch(`/api/database/tables/${tableName}/data?limit=${currentLimit}&offset=${offset}`);
                 const data = await res.json();
 
                 if (data.error) {
@@ -719,9 +731,8 @@
             const durationText = document.getElementById('queryDurationText');
 
             try {
-                const res = await fetch('/api/database/query', {
+                const res = await dbFetch('/api/database/query', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ query })
                 });
                 const data = await res.json();

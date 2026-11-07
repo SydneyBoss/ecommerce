@@ -19,10 +19,20 @@ import java.util.Map;
 public class OrderController {
 
     private final OrderService orderService;
+    private final com.ecommerce.service.AuthService authService;
 
     @Autowired
-    public OrderController(OrderService orderService) {
+    public OrderController(OrderService orderService, com.ecommerce.service.AuthService authService) {
         this.orderService = orderService;
+        this.authService = authService;
+    }
+
+    @GetMapping("/my-orders")
+    public ResponseEntity<?> getMyOrders() {
+        return authService.getCurrentAuthenticatedUser()
+                .<ResponseEntity<?>>map(user -> ResponseEntity.ok(orderService.getUserOrders(user.getId())))
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Collections.singletonMap("error", "Please sign in to view your orders")));
     }
 
     @PostMapping

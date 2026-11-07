@@ -21,6 +21,11 @@ public class OrderItem {
     @JoinColumn(name = "product_id")
     private Product product;
 
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "seller_id")
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"password", "hibernateLazyInitializer", "handler"})
+    private User seller;
+
     @Column(nullable = false)
     private String productName;
 
@@ -66,6 +71,14 @@ public class OrderItem {
 
     public void setProduct(Product product) {
         this.product = product;
+    }
+
+    public User getSeller() {
+        return seller;
+    }
+
+    public void setSeller(User seller) {
+        this.seller = seller;
     }
 
     public String getProductName() {

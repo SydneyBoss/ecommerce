@@ -6,6 +6,8 @@
 // Application State
 const state = {
     currentMode: 'user', // 'user' | 'seller' | 'admin'
+    token: localStorage.getItem('nova_auth_token') || null,
+    currentUser: JSON.parse(localStorage.getItem('nova_auth_user') || 'null'),
     products: [],
     categories: [],
     cart: JSON.parse(localStorage.getItem('nova_cart') || '[]'),
@@ -14,8 +16,26 @@ const state = {
     currentSort: 'default',
     lastPlacedOrder: null,
     sellerFilterQuery: '',
-    adminOrders: []
+    adminOrders: [],
+    adminSellers: [],
+    adminUsers: [],
+    adminSellersFilter: '',
+    adminUsersFilter: '',
+    adminCurrentTab: 'orders',
+    sellerCurrentTab: 'inventory'
 };
+
+// Authenticated fetch wrapper (attaches JWT Bearer token automatically)
+async function authFetch(url, options = {}) {
+    options.headers = options.headers || {};
+    if (state.token) {
+        options.headers['Authorization'] = `Bearer ${state.token}`;
+    }
+    if (!options.headers['Content-Type'] && !(options.body instanceof FormData)) {
+        options.headers['Content-Type'] = 'application/json';
+    }
+    return fetch(url, options);
+}
 
 // Indian Currency Formatter (₹ INR)
 function formatINR(val) {
@@ -32,6 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initApp() {
+    initAuth();
     setupEventListeners();
     updateCartBadge();
     await fetchCategories();
@@ -54,10 +75,26 @@ async function initApp() {
 }
 
 // -------------------------------------------------------------
-// MODE SWITCHER (USER / SELLER / ADMIN)
+// MODE SWITCHER (USER / SELLER / ADMIN) WITH RBAC ENFORCEMENT
 // -------------------------------------------------------------
 function switchMode(mode) {
     if (!['user', 'seller', 'admin'].includes(mode)) mode = 'user';
+
+    // RBAC Security Gate
+    if (mode === 'admin') {
+        if (!state.currentUser || state.currentUser.role !== 'ROLE_ADMIN') {
+            showToast('Access Denied: Master Admin credentials required.', 'error');
+            openAuthModal('admin');
+            return;
+        }
+    } else if (mode === 'seller') {
+        if (!state.currentUser || (state.currentUser.role !== 'ROLE_SELLER' && state.currentUser.role !== 'ROLE_ADMIN')) {
+            showToast('Access Denied: Seller account required to access Seller Hub.', 'error');
+            openAuthModal('seller');
+            return;
+        }
+    }
+
     state.currentMode = mode;
     window.location.hash = mode;
 
@@ -190,8 +227,336 @@ function setupEventListeners() {
             closeAddProductModal();
             closeQuickEditModal();
             closeAddCategoryModal();
+            closeAuthModal();
+            closeSellerStatsModal();
+            closeAdminSellerModal();
+            closeAdminUserModal();
         }
     });
+}
+
+// -------------------------------------------------------------
+// AUTHENTICATION & ROLE-BASED ACCESS CONTROL (RBAC)
+// -------------------------------------------------------------
+async function initAuth() {
+    if (state.token) {
+        try {
+            const res = await authFetch('/api/auth/me');
+            if (res.ok) {
+                const userData = await res.json();
+                state.currentUser = userData;
+                localStorage.setItem('nova_auth_user', JSON.stringify(userData));
+            } else {
+                state.token = null;
+                state.currentUser = null;
+                localStorage.removeItem('nova_auth_token');
+                localStorage.removeItem('nova_auth_user');
+            }
+        } catch (err) {
+            console.warn('Auth check error:', err);
+        }
+    }
+    renderAuthWidget();
+}
+
+function renderAuthWidget() {
+    const container = document.getElementById('authHeaderWidget');
+    const topAccountLabel = document.getElementById('topAccountLabel');
+
+    if (!container) return;
+
+    if (state.currentUser) {
+        const roleConfig = {
+            'ROLE_ADMIN': { badge: 'Admin', color: 'bg-purple-100 text-purple-800 border-purple-200' },
+            'ROLE_SELLER': { badge: 'Seller', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
+            'ROLE_USER': { badge: 'Buyer', color: 'bg-blue-100 text-blue-800 border-blue-200' }
+        };
+        const cfg = roleConfig[state.currentUser.role] || { badge: 'User', color: 'bg-slate-100 text-slate-700 border-slate-200' };
+        const initial = (state.currentUser.name || 'U').charAt(0).toUpperCase();
+
+        if (topAccountLabel) {
+            topAccountLabel.innerText = `${state.currentUser.name} (${cfg.badge})`;
+        }
+
+        container.innerHTML = `
+            <div class="relative group">
+                <button type="button" class="flex items-center gap-2 p-1.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-white shadow-sm transition">
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-brand-600 to-indigo-600 text-white font-black text-xs flex items-center justify-center shadow-inner">
+                        ${initial}
+                    </div>
+                    <div class="text-left hidden xl:block pr-1">
+                        <div class="text-xs font-bold text-slate-800 leading-tight max-w-[120px] truncate">${escapeHtml(state.currentUser.name)}</div>
+                        <div class="flex items-center gap-1">
+                            <span class="text-[9px] font-bold px-1.5 py-0.2 rounded-full border ${cfg.color}">${cfg.badge}</span>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-down text-[10px] text-slate-400 group-hover:text-slate-600 mr-1 transition-transform group-hover:rotate-180"></i>
+                </button>
+
+                <!-- Dropdown Menu -->
+                <div class="absolute right-0 mt-1.5 w-60 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 hidden group-hover:block hover:block z-50">
+                    <div class="px-4 py-2 border-b border-slate-100">
+                        <p class="text-xs font-bold text-slate-900">${escapeHtml(state.currentUser.name)}</p>
+                        <p class="text-[11px] text-slate-500 font-mono truncate">${escapeHtml(state.currentUser.email)}</p>
+                        ${state.currentUser.storeName ? `<div class="mt-1 text-[11px] font-semibold text-emerald-700 flex items-center gap-1"><i class="fa-solid fa-store text-[10px]"></i> ${escapeHtml(state.currentUser.storeName)}</div>` : ''}
+                    </div>
+                    <div class="py-1">
+                        <button onclick="switchMode('user')" class="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2 font-medium">
+                            <i class="fa-solid fa-bag-shopping text-brand-600 w-4"></i>
+                            <span>Shop Portal (Buyer)</span>
+                        </button>
+                        ${(state.currentUser.role === 'ROLE_SELLER' || state.currentUser.role === 'ROLE_ADMIN') ? `
+                        <button onclick="switchMode('seller')" class="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2 font-medium">
+                            <i class="fa-solid fa-boxes-packing text-emerald-600 w-4"></i>
+                            <span>Seller Hub</span>
+                        </button>` : ''}
+                        ${state.currentUser.role === 'ROLE_ADMIN' ? `
+                        <button onclick="switchMode('admin')" class="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2 font-medium">
+                            <i class="fa-solid fa-shield-halved text-purple-600 w-4"></i>
+                            <span>Executive Admin</span>
+                        </button>` : ''}
+                    </div>
+                    <div class="pt-1 border-t border-slate-100">
+                        <button onclick="openAuthModal()" class="w-full text-left px-4 py-2 text-xs text-slate-600 hover:bg-slate-50 flex items-center gap-2">
+                            <i class="fa-solid fa-arrow-right-arrow-left text-slate-400 w-4"></i>
+                            <span>Switch Account / Register</span>
+                        </button>
+                        <button onclick="handleLogout()" class="w-full text-left px-4 py-2 text-xs text-rose-600 hover:bg-rose-50 flex items-center gap-2 font-semibold">
+                            <i class="fa-solid fa-right-from-bracket text-rose-500 w-4"></i>
+                            <span>Sign Out</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    } else {
+        if (topAccountLabel) {
+            topAccountLabel.innerText = 'Sign In / Register';
+        }
+        container.innerHTML = `
+            <button onclick="openAuthModal()" class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition shadow-sm">
+                <i class="fa-solid fa-user text-xs"></i>
+                <span>Sign In</span>
+            </button>
+        `;
+    }
+}
+
+function openAuthModal(targetRole = null) {
+    const modal = document.getElementById('authModal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+
+    if (targetRole === 'seller') {
+        const sellerRadio = document.querySelector('input[name="regRole"][value="ROLE_SELLER"]');
+        if (sellerRadio) {
+            sellerRadio.checked = true;
+            toggleRegisterRoleFields();
+        }
+    } else if (targetRole === 'user') {
+        const userRadio = document.querySelector('input[name="regRole"][value="ROLE_USER"]');
+        if (userRadio) {
+            userRadio.checked = true;
+            toggleRegisterRoleFields();
+        }
+    }
+}
+
+function closeAuthModal() {
+    document.getElementById('authModal')?.classList.add('hidden');
+}
+
+function switchAuthTab(tab) {
+    const loginForm = document.getElementById('loginForm');
+    const registerForm = document.getElementById('registerForm');
+    const loginBtn = document.getElementById('authTabLoginBtn');
+    const registerBtn = document.getElementById('authTabRegisterBtn');
+
+    if (tab === 'register') {
+        loginForm?.classList.add('hidden');
+        registerForm?.classList.remove('hidden');
+        if (registerBtn) registerBtn.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition bg-white text-slate-900 shadow-sm';
+        if (loginBtn) loginBtn.className = 'flex-1 py-2 text-xs font-semibold rounded-lg transition text-slate-600 hover:text-slate-900';
+    } else {
+        registerForm?.classList.add('hidden');
+        loginForm?.classList.remove('hidden');
+        if (loginBtn) loginBtn.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition bg-white text-slate-900 shadow-sm';
+        if (registerBtn) registerBtn.className = 'flex-1 py-2 text-xs font-semibold rounded-lg transition text-slate-600 hover:text-slate-900';
+    }
+}
+
+function toggleRegisterRoleFields() {
+    const selectedRole = document.querySelector('input[name="regRole"]:checked')?.value;
+    const storeContainer = document.getElementById('regStoreNameContainer');
+    const storeInput = document.getElementById('regStoreName');
+
+    if (selectedRole === 'ROLE_SELLER') {
+        storeContainer?.classList.remove('hidden');
+        if (storeInput) storeInput.required = true;
+    } else {
+        storeContainer?.classList.add('hidden');
+        if (storeInput) {
+            storeInput.required = false;
+            storeInput.value = '';
+        }
+    }
+}
+
+async function handleLoginSubmit(event) {
+    if (event) event.preventDefault();
+    const email = document.getElementById('loginEmail')?.value.trim();
+    const password = document.getElementById('loginPassword')?.value;
+    const submitBtn = document.getElementById('loginSubmitBtn');
+
+    if (!email || !password) {
+        showToast('Please enter both email and password', 'error');
+        return;
+    }
+
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Signing In...';
+    }
+
+    try {
+        const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || data.error || 'Authentication failed');
+        }
+
+        state.token = data.token;
+        state.currentUser = {
+            id: data.id,
+            name: data.name,
+            email: data.email,
+            role: data.role,
+            storeName: data.storeName,
+            city: data.city,
+            phone: data.phone
+        };
+        localStorage.setItem('nova_auth_token', state.token);
+        localStorage.setItem('nova_auth_user', JSON.stringify(state.currentUser));
+
+        closeAuthModal();
+        renderAuthWidget();
+        showToast(`Welcome back, ${data.name}! Signed in as ${data.role.replace('ROLE_', '')}.`, 'success');
+
+        if (data.role === 'ROLE_ADMIN') {
+            switchMode('admin');
+        } else if (data.role === 'ROLE_SELLER') {
+            switchMode('seller');
+        } else {
+            switchMode('user');
+        }
+    } catch (err) {
+        showToast(err.message, 'error');
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<span>Sign In</span><i class="fa-solid fa-arrow-right text-xs"></i>';
+        }
+    }
+}
+
+async function handleRegisterSubmit(event) {
+    event.preventDefault();
+    const role = document.querySelector('input[name="regRole"]:checked')?.value || 'ROLE_USER';
+    const name = document.getElementById('regName')?.value.trim();
+    const email = document.getElementById('regEmail')?.value.trim();
+    const password = document.getElementById('regPassword')?.value;
+    const phone = document.getElementById('regPhone')?.value.trim();
+    const storeName = document.getElementById('regStoreName')?.value.trim();
+    const city = document.getElementById('regCity')?.value.trim();
+    const stateVal = document.getElementById('regState')?.value.trim();
+    const submitBtn = document.getElementById('registerSubmitBtn');
+
+    if (role === 'ROLE_SELLER' && !storeName) {
+        showToast('Please enter your business / store name', 'error');
+        return;
+    }
+
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Creating Account...';
+    }
+
+    try {
+        const response = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name,
+                email,
+                password,
+                role,
+                storeName: role === 'ROLE_SELLER' ? storeName : null,
+                phone,
+                city,
+                state: stateVal
+            })
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || data.error || 'Registration failed');
+        }
+
+        state.token = data.token;
+        state.currentUser = {
+            id: data.id,
+            name: data.name,
+            email: data.email,
+            role: data.role,
+            storeName: data.storeName,
+            city: data.city,
+            phone: data.phone
+        };
+        localStorage.setItem('nova_auth_token', state.token);
+        localStorage.setItem('nova_auth_user', JSON.stringify(state.currentUser));
+
+        closeAuthModal();
+        renderAuthWidget();
+        showToast(`Account created successfully! Welcome, ${data.name}.`, 'success');
+
+        if (data.role === 'ROLE_SELLER') {
+            switchMode('seller');
+        } else {
+            switchMode('user');
+        }
+    } catch (err) {
+        showToast(err.message, 'error');
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<span>Register & Sign In</span><i class="fa-solid fa-check text-xs"></i>';
+        }
+    }
+}
+
+function quickLoginDemo(email, password) {
+    switchAuthTab('login');
+    const emailInput = document.getElementById('loginEmail');
+    const passwordInput = document.getElementById('loginPassword');
+    if (emailInput) emailInput.value = email;
+    if (passwordInput) passwordInput.value = password;
+    handleLoginSubmit(null);
+}
+
+function handleLogout() {
+    state.token = null;
+    state.currentUser = null;
+    localStorage.removeItem('nova_auth_token');
+    localStorage.removeItem('nova_auth_user');
+
+    renderAuthWidget();
+    showToast('Signed out successfully.', 'info');
+    if (state.currentMode !== 'user') {
+        switchMode('user');
+    }
 }
 
 // -------------------------------------------------------------
@@ -674,6 +1039,23 @@ function openCheckoutModal() {
     document.getElementById('checkoutTotalAmount').innerText = `₹${formatINR(total)}`;
     updateSubmitButtonText();
 
+    // Auto-fill customer details if logged in
+    if (state.currentUser) {
+        const nameInput = document.getElementById('custName');
+        const emailInput = document.getElementById('custEmail');
+        const phoneInput = document.getElementById('custPhone');
+        const cityInput = document.getElementById('custCity');
+        const stateInput = document.getElementById('custState');
+
+        if (nameInput && !nameInput.value) nameInput.value = state.currentUser.name || '';
+        if (emailInput && !emailInput.value) emailInput.value = state.currentUser.email || '';
+        if (phoneInput && !phoneInput.value && state.currentUser.phone) {
+            phoneInput.value = state.currentUser.phone.replace('+91', '').trim();
+        }
+        if (cityInput && !cityInput.value && state.currentUser.city) cityInput.value = state.currentUser.city;
+        if (stateInput && !stateInput.value && state.currentUser.state) stateInput.value = state.currentUser.state;
+    }
+
     // Random 4-digit code for COD anti-spam
     const randCode = Math.floor(1000 + Math.random() * 9000);
     const captchaDisplay = document.getElementById('codCaptchaDisplay');
@@ -951,9 +1333,8 @@ async function handlePlaceOrder(event) {
     };
 
     try {
-        const response = await fetch('/api/orders', {
+        const response = await authFetch('/api/orders', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(orderPayload)
         });
         const orderData = await response.json();
@@ -1596,18 +1977,44 @@ async function fetchAndRenderOrders() {
     container.innerHTML = '<div class="text-center py-6 text-xs text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading order records...</div>';
 
     try {
-        const response = await fetch('/api/orders');
+        let response;
+        if (state.token) {
+            response = await authFetch('/api/orders/my-orders');
+        } else {
+            response = await fetch('/api/orders');
+        }
+
+        if (response.status === 401 || response.status === 403) {
+            container.innerHTML = `
+                <div class="text-center py-8 text-slate-500">
+                    <i class="fa-solid fa-user-lock text-3xl text-slate-300 mb-2"></i>
+                    <p class="text-xs font-bold text-slate-700">Please sign in to view your personal order history.</p>
+                    <button onclick="openAuthModal('user')" class="mt-3 px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold transition shadow-sm">
+                        Sign In / Register
+                    </button>
+                    <div class="mt-4 text-[11px] text-slate-400">Or use the search box above to lookup a specific order number.</div>
+                </div>
+            `;
+            return;
+        }
+
         if (!response.ok) throw new Error('Failed to fetch orders');
         const orders = await response.json();
 
         if (orders.length === 0) {
-            container.innerHTML = `<div class="text-center py-8 text-slate-500"><i class="fa-solid fa-receipt text-3xl text-slate-300 mb-2"></i><p class="text-xs font-semibold">No orders recorded yet.</p></div>`;
+            container.innerHTML = `
+                <div class="text-center py-8 text-slate-500">
+                    <i class="fa-solid fa-receipt text-3xl text-slate-300 mb-2"></i>
+                    <p class="text-xs font-semibold">No orders recorded yet.</p>
+                    <p class="text-[11px] text-slate-400 mt-1">Browse products and place your first order!</p>
+                </div>
+            `;
             return;
         }
 
         container.innerHTML = orders.map(ord => renderCustomerOrderCard(ord)).join('');
     } catch (err) {
-        container.innerHTML = `<div class="p-4 bg-red-50 text-red-600 rounded-xl text-xs">Failed to load order history.</div>`;
+        container.innerHTML = `<div class="p-4 bg-red-50 text-red-600 rounded-xl text-xs">Failed to load order history: ${escapeHtml(err.message)}</div>`;
     }
 }
 
@@ -1685,30 +2092,57 @@ function renderCustomerOrderCard(order) {
 // -------------------------------------------------------------
 // SELLER MODE: INVENTORY MANAGEMENT & LISTINGS
 // -------------------------------------------------------------
-function renderSellerView() {
-    const totalListings = state.products.length;
-    const totalStock = state.products.reduce((sum, p) => sum + (p.stockQuantity || 0), 0);
-    const lowStock = state.products.filter(p => (p.stockQuantity || 0) > 0 && p.stockQuantity < 10).length;
-    const outOfStock = state.products.filter(p => (p.stockQuantity || 0) <= 0).length;
+async function renderSellerView() {
+    // If a seller is logged in, display their store name & contact
+    if (state.currentUser && (state.currentUser.role === 'ROLE_SELLER' || state.currentUser.role === 'ROLE_ADMIN')) {
+        const storeNameEl = document.getElementById('sellerActiveStoreName');
+        const contactEl = document.getElementById('sellerActiveContact');
+        if (storeNameEl) {
+            storeNameEl.innerText = state.currentUser.storeName || `${state.currentUser.name}'s Merchant Store`;
+        }
+        if (contactEl) {
+            contactEl.innerText = `Merchant Account: ${state.currentUser.name} (${state.currentUser.email}) • ${state.currentUser.city || 'India'}`;
+        }
+    }
+
+    // Filter products for this specific seller if in seller role
+    let sellerProducts = state.products;
+    if (state.currentUser && state.currentUser.role === 'ROLE_SELLER') {
+        sellerProducts = state.products.filter(p => p.seller && p.seller.id === state.currentUser.id);
+    }
+
+    const totalListings = sellerProducts.length;
+    const totalStock = sellerProducts.reduce((sum, p) => sum + (p.stockQuantity || 0), 0);
+    const lowStock = sellerProducts.filter(p => (p.stockQuantity || 0) > 0 && p.stockQuantity < 10).length;
+    const outOfStock = sellerProducts.filter(p => (p.stockQuantity || 0) <= 0).length;
 
     document.getElementById('sellerTotalListings').innerText = totalListings;
     document.getElementById('sellerTotalStock').innerText = totalStock;
     document.getElementById('sellerLowStock').innerText = lowStock;
     document.getElementById('sellerOutOfStock').innerText = outOfStock;
 
-    renderSellerTable();
+    renderSellerTable(sellerProducts);
+    await loadSellerOrders();
 }
 
 function filterSellerTable(query) {
     state.sellerFilterQuery = (query || '').toLowerCase().trim();
-    renderSellerTable();
+    let sellerProducts = state.products;
+    if (state.currentUser && state.currentUser.role === 'ROLE_SELLER') {
+        sellerProducts = state.products.filter(p => p.seller && p.seller.id === state.currentUser.id);
+    }
+    renderSellerTable(sellerProducts);
 }
 
-function renderSellerTable() {
+function renderSellerTable(itemsToRender) {
     const tbody = document.getElementById('sellerTableBody');
     if (!tbody) return;
 
-    let items = [...state.products];
+    let items = itemsToRender || [...state.products];
+    if (state.currentUser && state.currentUser.role === 'ROLE_SELLER') {
+        items = items.filter(p => p.seller && p.seller.id === state.currentUser.id);
+    }
+
     if (state.sellerFilterQuery) {
         items = items.filter(p =>
             p.name.toLowerCase().includes(state.sellerFilterQuery) ||
@@ -1717,7 +2151,7 @@ function renderSellerTable() {
     }
 
     if (items.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-slate-400">No matching seller products found.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-slate-400">No matching seller products found. Click "List New Product" to add one!</td></tr>`;
         return;
     }
 
@@ -1730,13 +2164,15 @@ function renderSellerTable() {
             stockBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">Low Stock</span>';
         }
 
+        const sellerStore = p.seller?.storeName || p.seller?.name || 'Assigned';
+
         return `
             <tr class="hover:bg-slate-50/80 transition-colors">
                 <td class="py-3 px-6 flex items-center gap-3">
                     <img src="${p.imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600'}" class="w-10 h-10 rounded-lg object-cover bg-slate-100 border border-slate-200 shrink-0">
                     <div>
                         <div class="font-bold text-slate-900">${escapeHtml(p.name)}</div>
-                        <div class="text-[11px] text-slate-400">ID: #${p.id}</div>
+                        <div class="text-[11px] text-slate-400">ID: #${p.id} • <span class="text-emerald-700 font-medium">${escapeHtml(sellerStore)}</span></div>
                     </div>
                 </td>
                 <td class="py-3 px-4 text-slate-600 font-medium">${escapeHtml(p.category?.name || 'General')}</td>
@@ -1756,6 +2192,107 @@ function renderSellerTable() {
             </tr>
         `;
     }).join('');
+}
+
+function toggleSellerView(view) {
+    state.sellerCurrentTab = view;
+    const invSection = document.getElementById('sellerInventorySection');
+    const histSection = document.getElementById('sellerHistorySection');
+    const invBtn = document.getElementById('sellerTabInventoryBtn');
+    const histBtn = document.getElementById('sellerTabHistoryBtn');
+
+    if (view === 'history') {
+        invSection?.classList.add('hidden');
+        histSection?.classList.remove('hidden');
+        if (histBtn) histBtn.className = 'px-3.5 py-1.5 rounded-lg bg-white text-slate-800 text-xs font-bold shadow-sm transition';
+        if (invBtn) invBtn.className = 'px-3.5 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 text-xs font-semibold transition';
+        loadSellerOrders();
+    } else {
+        histSection?.classList.add('hidden');
+        invSection?.classList.remove('hidden');
+        if (invBtn) invBtn.className = 'px-3.5 py-1.5 rounded-lg bg-white text-slate-800 text-xs font-bold shadow-sm transition';
+        if (histBtn) histBtn.className = 'px-3.5 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 text-xs font-semibold transition';
+        renderSellerTable();
+    }
+}
+
+async function loadSellerOrders() {
+    const tbody = document.getElementById('sellerOrdersTableBody');
+    const badge = document.getElementById('sellerOrdersCountBadge');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading sales history...</td></tr>';
+
+    try {
+        const res = await authFetch('/api/seller/orders');
+        if (!res.ok) throw new Error('Failed to load seller orders');
+        const orders = await res.json();
+
+        if (badge) badge.innerText = `${orders.length} order(s) placed`;
+
+        if (orders.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-400">No orders placed for your listings yet.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = orders.map(ord => {
+            const formattedDate = ord.createdAt ? new Date(ord.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recent';
+            const itemsHtml = (ord.items || []).map(i => `
+                <div class="text-[11px] text-slate-800"><span class="font-bold text-slate-900">${i.quantity}x</span> ${escapeHtml(i.productName)} (₹${formatINR(i.unitPrice)})</div>
+            `).join('');
+
+            return `
+                <tr class="hover:bg-slate-50/80 transition-colors">
+                    <td class="py-3 px-6">
+                        <span class="font-mono font-bold text-emerald-700">${ord.orderNumber}</span>
+                        <div class="text-[11px] text-slate-400">${formattedDate}</div>
+                    </td>
+                    <td class="py-3 px-4">
+                        <div class="font-bold text-slate-900">${escapeHtml(ord.customerName)}</div>
+                        <div class="text-[11px] text-slate-500">${escapeHtml(ord.customerCity || '')}, ${escapeHtml(ord.customerState || '')}</div>
+                    </td>
+                    <td class="py-3 px-4">${itemsHtml}</td>
+                    <td class="py-3 px-4 font-mono font-extrabold text-emerald-600">₹${formatINR(ord.sellerEarnings)}</td>
+                    <td class="py-3 px-4">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">${escapeHtml(ord.paymentMethod || 'UPI')}</span>
+                    </td>
+                    <td class="py-3 px-6 text-right">
+                        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold ${getStatusBadgeClass(ord.status)}">${ord.status}</span>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-rose-500">${err.message}</td></tr>`;
+    }
+}
+
+async function openSellerStatsModal() {
+    const modal = document.getElementById('sellerStatsModal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+
+    const storeNameEl = document.getElementById('statsModalStoreName');
+    if (storeNameEl && state.currentUser) {
+        storeNameEl.innerText = state.currentUser.storeName || `${state.currentUser.name} Store`;
+    }
+
+    try {
+        const res = await authFetch('/api/seller/stats');
+        if (res.ok) {
+            const stats = await res.json();
+            document.getElementById('statsModalRevenue').innerText = `₹${formatINR(stats.totalRevenue || 0)}`;
+            document.getElementById('statsModalUnitsSold').innerText = stats.totalUnitsSold || 0;
+            document.getElementById('statsModalActiveListings').innerText = stats.activeStockCount || 0;
+            document.getElementById('statsModalOrdersCount').innerText = stats.totalOrdersCount || 0;
+        }
+    } catch (err) {
+        console.error('Failed to load seller stats:', err);
+    }
+}
+
+function closeSellerStatsModal() {
+    document.getElementById('sellerStatsModal')?.classList.add('hidden');
 }
 
 // Seller: Quick Edit Price & Stock
@@ -1780,9 +2317,8 @@ async function handleQuickEditSubmit(event) {
     const stockQuantity = parseInt(document.getElementById('quickEditStock').value);
 
     try {
-        const response = await fetch(`/api/products/${id}`, {
+        const response = await authFetch(`/api/products/${id}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ price, stockQuantity })
         });
         if (!response.ok) throw new Error('Failed to update listing');
@@ -1821,9 +2357,8 @@ async function handleCreateProduct(event) {
     };
 
     try {
-        const response = await fetch('/api/products', {
+        const response = await authFetch('/api/products', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
         if (!response.ok) throw new Error('Failed to create product listing');
@@ -1840,7 +2375,7 @@ async function handleDeleteProduct(id, name) {
     if (!confirm(`Are you sure you want to delete listing "${name}"?`)) return;
 
     try {
-        const response = await fetch(`/api/products/${id}`, { method: 'DELETE' });
+        const response = await authFetch(`/api/products/${id}`, { method: 'DELETE' });
         if (!response.ok) throw new Error('Failed to delete listing');
         showToast(`Listing "${name}" deleted.`, 'info');
         await loadProducts();
@@ -1850,17 +2385,53 @@ async function handleDeleteProduct(id, name) {
 }
 
 // -------------------------------------------------------------
-// ADMIN MODE: EXECUTIVE DASHBOARD & STATUS MANAGEMENT
+// ADMIN MODE: EXECUTIVE DASHBOARD & DIRECTORIES
 // -------------------------------------------------------------
 async function renderAdminView() {
-    await refreshAdminData();
-    renderAdminCategories();
+    switchAdminTab(state.adminCurrentTab || 'orders');
+}
+
+function switchAdminTab(tab) {
+    state.adminCurrentTab = tab;
+    const ordersSection = document.getElementById('adminSectionOrders');
+    const sellersSection = document.getElementById('adminSectionSellers');
+    const usersSection = document.getElementById('adminSectionUsers');
+
+    const ordersBtn = document.getElementById('adminTabOrdersBtn');
+    const sellersBtn = document.getElementById('adminTabSellersBtn');
+    const usersBtn = document.getElementById('adminTabUsersBtn');
+
+    // Hide all sections
+    ordersSection?.classList.add('hidden');
+    sellersSection?.classList.add('hidden');
+    usersSection?.classList.add('hidden');
+
+    const activeBtnClass = 'px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 bg-purple-600 text-white shadow-sm';
+    const inactiveBtnClass = 'px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 bg-white text-slate-700 border border-slate-300 hover:bg-slate-50';
+
+    if (ordersBtn) ordersBtn.className = inactiveBtnClass;
+    if (sellersBtn) sellersBtn.className = inactiveBtnClass;
+    if (usersBtn) usersBtn.className = inactiveBtnClass;
+
+    if (tab === 'sellers') {
+        sellersSection?.classList.remove('hidden');
+        if (sellersBtn) sellersBtn.className = activeBtnClass;
+        loadAdminSellers();
+    } else if (tab === 'users') {
+        usersSection?.classList.remove('hidden');
+        if (usersBtn) usersBtn.className = activeBtnClass;
+        loadAdminUsers();
+    } else {
+        ordersSection?.classList.remove('hidden');
+        if (ordersBtn) ordersBtn.className = activeBtnClass;
+        refreshAdminData();
+    }
 }
 
 async function refreshAdminData() {
     // 1. Fetch dashboard KPI stats
     try {
-        const statsRes = await fetch('/api/orders/stats/dashboard');
+        const statsRes = await authFetch('/api/orders/stats/dashboard');
         if (statsRes.ok) {
             const stats = await statsRes.json();
             document.getElementById('adminTotalRevenue').innerText = `₹${formatINR(stats.totalRevenue || 0)}`;
@@ -1874,7 +2445,7 @@ async function refreshAdminData() {
 
     // 2. Fetch all orders for management table
     try {
-        const ordersRes = await fetch('/api/orders');
+        const ordersRes = await authFetch('/api/orders');
         if (ordersRes.ok) {
             state.adminOrders = await ordersRes.json();
             renderAdminOrdersTable();
@@ -1882,6 +2453,8 @@ async function refreshAdminData() {
     } catch (err) {
         console.error('Error fetching admin orders:', err);
     }
+
+    renderAdminCategories();
 }
 
 function renderAdminOrdersTable() {
@@ -1942,9 +2515,8 @@ function renderAdminOrdersTable() {
 
 async function handleAdminOrderStatusChange(orderNumber, newStatus) {
     try {
-        const response = await fetch(`/api/orders/${encodeURIComponent(orderNumber)}/status`, {
+        const response = await authFetch(`/api/orders/${encodeURIComponent(orderNumber)}/status`, {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: newStatus })
         });
         if (!response.ok) throw new Error('Failed to update order status');
@@ -1954,6 +2526,388 @@ async function handleAdminOrderStatusChange(orderNumber, newStatus) {
     } catch (err) {
         showToast(err.message, 'error');
     }
+}
+
+// -------------------------------------------------------------
+// ADMIN SELLERS DIRECTORY & DEEP INSPECTION
+// -------------------------------------------------------------
+async function loadAdminSellers() {
+    const tbody = document.getElementById('adminSellersTableBody');
+    const countBadge = document.getElementById('adminSellersCountBadge');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading sellers directory...</td></tr>';
+
+    try {
+        const res = await authFetch('/api/admin/sellers');
+        if (!res.ok) throw new Error('Failed to load sellers');
+        state.adminSellers = await res.json();
+
+        if (countBadge) countBadge.innerText = state.adminSellers.length;
+        renderAdminSellersTable();
+    } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-rose-500">${escapeHtml(err.message)}</td></tr>`;
+    }
+}
+
+function filterAdminSellersTable(query) {
+    state.adminSellersFilter = (query || '').toLowerCase().trim();
+    renderAdminSellersTable();
+}
+
+function renderAdminSellersTable() {
+    const tbody = document.getElementById('adminSellersTableBody');
+    if (!tbody) return;
+
+    let items = state.adminSellers || [];
+    if (state.adminSellersFilter) {
+        items = items.filter(s =>
+            (s.name && s.name.toLowerCase().includes(state.adminSellersFilter)) ||
+            (s.storeName && s.storeName.toLowerCase().includes(state.adminSellersFilter)) ||
+            (s.email && s.email.toLowerCase().includes(state.adminSellersFilter)) ||
+            (s.city && s.city.toLowerCase().includes(state.adminSellersFilter))
+        );
+    }
+
+    if (items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-slate-400">No sellers matching the search criteria.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = items.map(s => `
+        <tr class="hover:bg-slate-50/80 transition-colors">
+            <td class="py-3 px-6">
+                <div class="font-bold text-slate-900 flex items-center gap-2">
+                    <span class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs"><i class="fa-solid fa-store"></i></span>
+                    <span>${escapeHtml(s.storeName || s.name)}</span>
+                </div>
+                <div class="text-[11px] text-slate-500 ml-9">Merchant: ${escapeHtml(s.name)} (ID: #${s.id})</div>
+            </td>
+            <td class="py-3 px-4">
+                <div class="font-mono text-slate-700">${escapeHtml(s.email)}</div>
+                <div class="text-[11px] text-slate-400">${escapeHtml(s.phone || 'No phone')}</div>
+            </td>
+            <td class="py-3 px-4 text-slate-600">
+                <div>${escapeHtml(s.city || 'India')}</div>
+                <div class="text-[11px] text-slate-400">${escapeHtml(s.state || '')}</div>
+            </td>
+            <td class="py-3 px-4 text-center font-bold text-slate-800">
+                <span class="px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200">${s.totalProducts !== undefined ? s.totalProducts : (s.productsListed || 0)}</span>
+            </td>
+            <td class="py-3 px-4 text-center font-bold text-indigo-700">
+                <span class="px-2 py-0.5 rounded-full bg-indigo-50 border border-indigo-200">${s.totalUnitsSold !== undefined ? s.totalUnitsSold : (s.unitsSold || 0)}</span>
+            </td>
+            <td class="py-3 px-4 font-mono font-black text-emerald-600">
+                ₹${formatINR(s.totalRevenue !== undefined ? s.totalRevenue : (s.grossRevenue || 0))}
+            </td>
+            <td class="py-3 px-6 text-right">
+                <button onclick="openAdminSellerModal(${s.id})" class="px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold text-xs transition flex items-center gap-1.5 ml-auto">
+                    <i class="fa-solid fa-eye text-xs"></i>
+                    <span>Inspect</span>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function openAdminSellerModal(sellerId) {
+    const modal = document.getElementById('adminSellerModal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+
+    const titleEl = document.getElementById('adminSellerModalTitle');
+    const subEl = document.getElementById('adminSellerModalSubtitle');
+    const prodCountEl = document.getElementById('adminSellerModalProductsCount');
+    const unitsSoldEl = document.getElementById('adminSellerModalUnitsSold');
+    const revEl = document.getElementById('adminSellerModalRevenue');
+    const prodContainer = document.getElementById('adminSellerProductsContainer');
+    const histContainer = document.getElementById('adminSellerHistoryContainer');
+
+    if (titleEl) titleEl.innerText = 'Loading Seller Details...';
+    if (prodContainer) prodContainer.innerHTML = '<div class="text-center py-6 text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading products...</div>';
+    if (histContainer) histContainer.innerHTML = '<div class="text-center py-6 text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading selling history...</div>';
+
+    switchAdminSellerTab('products');
+
+    try {
+        const res = await authFetch(`/api/admin/sellers/${sellerId}`);
+        if (!res.ok) throw new Error('Failed to load seller details');
+        const detail = await res.json();
+
+        const sellerObj = detail.seller || detail;
+        const stats = detail.stats || {};
+        const prods = detail.products || [];
+        const orders = detail.sellingHistory || detail.sellingOrders || [];
+
+        if (titleEl) titleEl.innerText = sellerObj.storeName || sellerObj.name;
+        if (subEl) subEl.innerText = `Merchant: ${sellerObj.name} • ${sellerObj.email} • ${sellerObj.phone || 'No phone'} • 📍 ${sellerObj.city || ''}, ${sellerObj.state || 'India'}`;
+        if (prodCountEl) prodCountEl.innerText = stats.activeStockCount !== undefined ? stats.activeStockCount : prods.length;
+        if (unitsSoldEl) unitsSoldEl.innerText = stats.totalUnitsSold !== undefined ? stats.totalUnitsSold : 0;
+        if (revEl) revEl.innerText = `₹${formatINR(stats.totalRevenue !== undefined ? stats.totalRevenue : 0)}`;
+
+        // Render Listed Products
+        if (prods.length === 0) {
+            prodContainer.innerHTML = '<div class="text-center py-6 text-xs text-slate-400">No products listed by this seller yet.</div>';
+        } else {
+            prodContainer.innerHTML = `
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-slate-50 text-slate-500 font-bold uppercase text-[10px] border-b border-slate-200">
+                        <tr>
+                            <th class="py-2.5 px-3">Product</th>
+                            <th class="py-2.5 px-3">Category</th>
+                            <th class="py-2.5 px-3 font-mono">Price</th>
+                            <th class="py-2.5 px-3">Stock Available</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        ${prods.map(p => `
+                            <tr class="hover:bg-slate-50">
+                                <td class="py-2.5 px-3 flex items-center gap-2">
+                                    <img src="${p.imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600'}" class="w-8 h-8 rounded object-cover border border-slate-200 shrink-0">
+                                    <div>
+                                        <div class="font-bold text-slate-800">${escapeHtml(p.name)}</div>
+                                        <div class="text-[10px] text-slate-400">ID: #${p.id}</div>
+                                    </div>
+                                </td>
+                                <td class="py-2.5 px-3 text-slate-600">${escapeHtml(p.category?.name || p.categoryName || 'General')}</td>
+                                <td class="py-2.5 px-3 font-mono font-bold text-slate-900">₹${formatINR(p.price)}</td>
+                                <td class="py-2.5 px-3">
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${(p.stockQuantity || 0) > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
+                                        ${p.stockQuantity || 0} units
+                                    </span>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        // Render Selling History
+        if (orders.length === 0) {
+            histContainer.innerHTML = '<div class="text-center py-6 text-xs text-slate-400">No sales recorded for this seller yet.</div>';
+        } else {
+            histContainer.innerHTML = `
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-slate-50 text-slate-500 font-bold uppercase text-[10px] border-b border-slate-200">
+                        <tr>
+                            <th class="py-2.5 px-3">Order Number</th>
+                            <th class="py-2.5 px-3">Customer</th>
+                            <th class="py-2.5 px-3">Item(s) Sold</th>
+                            <th class="py-2.5 px-3 font-mono">Seller Earnings</th>
+                            <th class="py-2.5 px-3">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        ${orders.map(o => {
+                            const itemsList = (o.items || []).map(i => `${i.quantity}x ${escapeHtml(i.productName)}`).join(', ');
+                            return `
+                                <tr class="hover:bg-slate-50">
+                                    <td class="py-2.5 px-3 font-mono font-bold text-emerald-700">${escapeHtml(o.orderNumber)}</td>
+                                    <td class="py-2.5 px-3">
+                                        <div class="font-bold text-slate-800">${escapeHtml(o.customerName)}</div>
+                                        <div class="text-[10px] text-slate-400">${escapeHtml(o.customerCity || '')}</div>
+                                    </td>
+                                    <td class="py-2.5 px-3 text-slate-700">${itemsList}</td>
+                                    <td class="py-2.5 px-3 font-mono font-bold text-emerald-600">₹${formatINR(o.sellerEarnings)}</td>
+                                    <td class="py-2.5 px-3">
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-bold ${getStatusBadgeClass(o.status)}">${o.status}</span>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+    } catch (err) {
+        showToast(err.message, 'error');
+        if (titleEl) titleEl.innerText = 'Error loading details';
+    }
+}
+
+function closeAdminSellerModal() {
+    document.getElementById('adminSellerModal')?.classList.add('hidden');
+}
+
+function switchAdminSellerTab(tab) {
+    const prodContainer = document.getElementById('adminSellerProductsContainer');
+    const histContainer = document.getElementById('adminSellerHistoryContainer');
+    const prodBtn = document.getElementById('adminSellerTabProdBtn');
+    const histBtn = document.getElementById('adminSellerTabHistBtn');
+
+    if (tab === 'history') {
+        prodContainer?.classList.add('hidden');
+        histContainer?.classList.remove('hidden');
+        if (histBtn) histBtn.className = 'px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold';
+        if (prodBtn) prodBtn.className = 'px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-semibold hover:bg-slate-200';
+    } else {
+        histContainer?.classList.add('hidden');
+        prodContainer?.classList.remove('hidden');
+        if (prodBtn) prodBtn.className = 'px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold';
+        if (histBtn) histBtn.className = 'px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-semibold hover:bg-slate-200';
+    }
+}
+
+// -------------------------------------------------------------
+// ADMIN USERS (BUYERS) DIRECTORY & DEEP INSPECTION
+// -------------------------------------------------------------
+async function loadAdminUsers() {
+    const tbody = document.getElementById('adminUsersTableBody');
+    const countBadge = document.getElementById('adminUsersCountBadge');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading users directory...</td></tr>';
+
+    try {
+        const res = await authFetch('/api/admin/users');
+        if (!res.ok) throw new Error('Failed to load users');
+        state.adminUsers = await res.json();
+
+        if (countBadge) countBadge.innerText = state.adminUsers.length;
+        renderAdminUsersTable();
+    } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-rose-500">${escapeHtml(err.message)}</td></tr>`;
+    }
+}
+
+function filterAdminUsersTable(query) {
+    state.adminUsersFilter = (query || '').toLowerCase().trim();
+    renderAdminUsersTable();
+}
+
+function renderAdminUsersTable() {
+    const tbody = document.getElementById('adminUsersTableBody');
+    if (!tbody) return;
+
+    let items = state.adminUsers || [];
+    if (state.adminUsersFilter) {
+        items = items.filter(u =>
+            (u.name && u.name.toLowerCase().includes(state.adminUsersFilter)) ||
+            (u.email && u.email.toLowerCase().includes(state.adminUsersFilter)) ||
+            (u.city && u.city.toLowerCase().includes(state.adminUsersFilter)) ||
+            (u.phone && u.phone.toLowerCase().includes(state.adminUsersFilter))
+        );
+    }
+
+    if (items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-slate-400">No customers matching the search criteria.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = items.map(u => {
+        const lastOrderDate = u.lastOrderDate ? new Date(u.lastOrderDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Never';
+        return `
+            <tr class="hover:bg-slate-50/80 transition-colors">
+                <td class="py-3 px-6">
+                    <div class="font-bold text-slate-900 flex items-center gap-2">
+                        <span class="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-800 flex items-center justify-center font-bold text-xs"><i class="fa-solid fa-user"></i></span>
+                        <span>${escapeHtml(u.name)}</span>
+                    </div>
+                    <div class="text-[11px] text-slate-400 ml-9">Customer ID: #${u.id}</div>
+                </td>
+                <td class="py-3 px-4 font-mono text-slate-700">${escapeHtml(u.email)}</td>
+                <td class="py-3 px-4 text-slate-600">${escapeHtml(u.phone || 'No phone')}</td>
+                <td class="py-3 px-4 text-slate-600">
+                    <div>${escapeHtml(u.city || 'India')}</div>
+                    <div class="text-[11px] text-slate-400">${escapeHtml(u.state || '')}</div>
+                </td>
+                <td class="py-3 px-4 text-center font-bold text-slate-800">
+                    <span class="px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200">${u.totalOrders || 0}</span>
+                </td>
+                <td class="py-3 px-4 font-mono font-black text-emerald-600">
+                    ₹${formatINR(u.totalSpent !== undefined ? u.totalSpent : (u.lifetimeSpend || 0))}
+                </td>
+                <td class="py-3 px-4 text-slate-500 text-[11px]">
+                    ${lastOrderDate}
+                </td>
+                <td class="py-3 px-6 text-right">
+                    <button onclick="openAdminUserModal(${u.id})" class="px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold text-xs transition flex items-center gap-1.5 ml-auto">
+                        <i class="fa-solid fa-eye text-xs"></i>
+                        <span>History</span>
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+async function openAdminUserModal(userId) {
+    const modal = document.getElementById('adminUserModal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+
+    const titleEl = document.getElementById('adminUserModalTitle');
+    const subEl = document.getElementById('adminUserModalSubtitle');
+    const ordersCountEl = document.getElementById('adminUserModalOrdersCount');
+    const spentEl = document.getElementById('adminUserModalSpent');
+    const historyContainer = document.getElementById('adminUserHistoryContainer');
+
+    if (titleEl) titleEl.innerText = 'Loading Customer Profile...';
+    if (historyContainer) historyContainer.innerHTML = '<div class="text-center py-6 text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading order history...</div>';
+
+    try {
+        const res = await authFetch(`/api/admin/users/${userId}`);
+        if (!res.ok) throw new Error('Failed to load user details');
+        const detail = await res.json();
+
+        const userObj = detail.user || detail;
+        const orders = detail.buyingHistory || detail.orders || [];
+
+        if (titleEl) titleEl.innerText = userObj.name;
+        if (subEl) subEl.innerText = `Email: ${userObj.email} • Phone: ${userObj.phone || 'N/A'} • 📍 ${userObj.city || ''}, ${userObj.state || 'India'}`;
+        if (ordersCountEl) ordersCountEl.innerText = detail.totalOrders !== undefined ? detail.totalOrders : orders.length;
+        if (spentEl) spentEl.innerText = `₹${formatINR(detail.totalSpent !== undefined ? detail.totalSpent : (detail.lifetimeSpend || 0))}`;
+
+        if (orders.length === 0) {
+            historyContainer.innerHTML = '<div class="text-center py-6 text-xs text-slate-400">This customer has not placed any orders yet.</div>';
+        } else {
+            historyContainer.innerHTML = `
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-slate-50 text-slate-500 font-bold uppercase text-[10px] border-b border-slate-200">
+                        <tr>
+                            <th class="py-2.5 px-3">Order Number & Date</th>
+                            <th class="py-2.5 px-3">Items Purchased</th>
+                            <th class="py-2.5 px-3 font-mono">Total Amount</th>
+                            <th class="py-2.5 px-3">Payment</th>
+                            <th class="py-2.5 px-3">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        ${orders.map(o => {
+                            const dateStr = o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent';
+                            const itemsList = (o.items || []).map(i => `${i.quantity}x ${escapeHtml(i.productName)}`).join(', ');
+                            return `
+                                <tr class="hover:bg-slate-50">
+                                    <td class="py-2.5 px-3">
+                                        <div class="font-mono font-bold text-brand-600">${escapeHtml(o.orderNumber)}</div>
+                                        <div class="text-[10px] text-slate-400">${dateStr}</div>
+                                    </td>
+                                    <td class="py-2.5 px-3 text-slate-700">${itemsList}</td>
+                                    <td class="py-2.5 px-3 font-mono font-bold text-slate-900">₹${formatINR(o.totalAmount)}</td>
+                                    <td class="py-2.5 px-3">
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-bold ${o.paymentStatus === 'PAID' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
+                                            ${escapeHtml(o.paymentMethod || 'UPI')} (${o.paymentStatus || 'PAID'})
+                                        </span>
+                                    </td>
+                                    <td class="py-2.5 px-3">
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-bold ${getStatusBadgeClass(o.status)}">${o.status}</span>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+    } catch (err) {
+        showToast(err.message, 'error');
+        if (titleEl) titleEl.innerText = 'Error loading customer';
+    }
+}
+
+function closeAdminUserModal() {
+    document.getElementById('adminUserModal')?.classList.add('hidden');
 }
 
 function renderAdminCategories() {
@@ -1991,9 +2945,8 @@ async function handleCreateCategory(event) {
     const description = document.getElementById('newCatDesc').value.trim();
 
     try {
-        const response = await fetch('/api/categories', {
+        const response = await authFetch('/api/categories', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, slug, description })
         });
         if (!response.ok) throw new Error('Failed to create category');

@@ -43,6 +43,11 @@ public class Product {
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Category category;
 
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "seller_id")
+    @JsonIgnoreProperties({"password", "hibernateLazyInitializer", "handler"})
+    private User seller;
+
     public Product() {}
 
     public Product(String name, String description, BigDecimal price, BigDecimal originalPrice,
@@ -155,6 +160,14 @@ public class Product {
 
     public void setCategory(Category category) {
         this.category = category;
+    }
+
+    public User getSeller() {
+        return seller;
+    }
+
+    public void setSeller(User seller) {
+        this.seller = seller;
     }
 
     @Override

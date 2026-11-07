@@ -18,6 +18,11 @@ public class Order {
     @Column(nullable = false, unique = true)
     private String orderNumber;
 
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "user_id")
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"password", "hibernateLazyInitializer", "handler"})
+    private User user;
+
     @Column(nullable = false)
     private String customerName;
 
@@ -261,6 +266,14 @@ public class Order {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
     }
 
     public List<OrderItem> getItems() {
